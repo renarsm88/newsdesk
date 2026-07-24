@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Companies to Watch — prototype</title>
+<style>
+  :root {
+    --bg: #faf8f4; --ink: #1a1a1a; --muted: #6b6b6b; --line: #e2ddd3;
+    --card: #ffffff; --accent: #b3261e; --chip: #f0ece3;
+    --up: #1e9e4a; --down: #d33a2f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513; --ink: #ece9e2; --muted: #9a968d; --line: #2e2c27;
+      --card: #201f1c; --accent: #e5544b; --chip: #2a2823;
+      --up: #3fbf6f; --down: #e5544b;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; line-height: 1.45; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px 60px; }
+  header { border-bottom: 3px double var(--line); padding: 26px 0 14px; }
+  h1 { font-family: Georgia, serif; font-size: clamp(1.5rem, 4vw, 2.1rem); }
+  h1 .dot { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+  .co {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; cursor: pointer; text-align: left; color: inherit; font: inherit;
+    display: flex; flex-direction: column; gap: 8px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .co:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
+  .co-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .tick { font-weight: 800; font-size: 1.05rem; letter-spacing: 0.02em; }
+  .badge {
+    font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px;
+    color: var(--muted); white-space: nowrap;
+  }
+  .co-name { color: var(--muted); font-size: 0.82rem; min-height: 2.4em; }
+  .co-nums { display: flex; justify-content: space-between; align-items: baseline; }
+  .price { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .delta { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .spark { width: 100%; height: 42px; }
+  .spark polyline { fill: none; stroke-width: 2; }
+  .spark .base { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+
+  dialog {
+    margin: auto; border: none; border-radius: 14px; padding: 0;
+    width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 64px);
+    background: var(--card); color: var(--ink);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+  }
+  dialog::backdrop { background: rgba(10,8,5,0.55); backdrop-filter: blur(3px); }
+  .modal-body { padding: 22px 26px 26px; }
+  .modal-close {
+    position: absolute; top: 12px; right: 12px; width: 34px; height: 34px;
+    border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 1.1rem; line-height: 1;
+  }
+  .m-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-right: 40px; }
+  .m-head h2 { font-family: Georgia, serif; font-size: 1.45rem; }
+  .m-name { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+  .m-price { text-align: right; }
+  .m-price .price { font-size: 1.5rem; }
+  .bigspark { width: 100%; height: 120px; margin: 16px 0 6px; }
+  .bigspark polyline { fill: none; stroke-width: 2.5; }
+  .bigspark .base { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+  .stats { display: flex; gap: 18px; color: var(--muted); font-size: 0.82rem; margin-bottom: 16px; flex-wrap: wrap; }
+  .stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .kicker { color: var(--accent); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+  .news-list { list-style: none; margin-top: 8px; }
+  .news-list a { display: block; padding: 10px 2px; border-top: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .news-list a:hover .t { color: var(--accent); }
+  .news-list .t { font-size: 0.94rem; font-weight: 600; line-height: 1.35; }
+  .news-list time { color: var(--muted); font-size: 0.76rem; }
+  .m-actions { margin-top: 16px; }
+  .btn {
+    display: inline-block; background: var(--accent); color: #fff; padding: 10px 18px;
+    border-radius: 8px; font-size: 0.95rem; font-weight: 600; text-decoration: none;
+  }
+  footer { margin-top: 40px; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--line); padding-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Companies to watch today<span class="dot">.</span> <span style="font-size:0.55em;color:var(--muted);font-family:-apple-system,sans-serif;font-weight:400">prototype</span></h1>
+    <div class="sub" id="dateline"></div>
+  </header>
+  <div class="grid" id="grid"></div>
+  <footer>
+    What's moving and in the news — trending, biggest gainers/losers, most traded. Data: Yahoo Finance, as of <span id="built-at"></span>.
+    This is market information, not investment advice.
+  </footer>
+</div>
+
+<dialog id="modal">
+  <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+  <div class="modal-body">
+    <div class="m-head">
+      <div>
+        <span class="kicker" id="m-badge"></span>
+        <h2 id="m-tick"></h2>
+        <div class="m-name" id="m-name"></div>
+      </div>
+      <div class="m-price">
+        <div class="price" id="m-price"></div>
+        <div class="delta" id="m-delta"></div>
+      </div>
+    </div>
+    <svg class="bigspark" id="m-spark" preserveAspectRatio="none"></svg>
+    <div class="stats">
+      <span>Prev close <b id="m-prev"></b></span>
+      <span>Day low <b id="m-low"></b></span>
+      <span>Day high <b id="m-high"></b></span>
+    </div>
+    <span class="kicker" style="color:var(--muted)">Latest headlines</span>
+    <ul class="news-list" id="m-news"></ul>
+    <div class="m-actions">
+      <a class="btn" id="m-link" target="_blank" rel="noopener">Open on Yahoo Finance ↗</a>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const DATA = /*__DATA__*/null;
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 60) return mins + " min ago";
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+  const days = Math.round(hrs / 24);
+  return days + (days === 1 ? " day ago" : " days ago");
+}
+
+function drawSpark(svg, series, prevClose, up) {
+  const W = 100, H = 100;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = "";
+  if (series.length < 2) return;
+  const all = series.concat([prevClose]);
+  const min = Math.min(...all), max = Math.max(...all);
+  const span = (max - min) || 1;
+  const y = v => H - 6 - ((v - min) / span) * (H - 12);
+  const x = i => (i / (series.length - 1)) * W;
+
+  const base = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  base.setAttribute("class", "base");
+  base.setAttribute("points", `0,${y(prevClose)} ${W},${y(prevClose)}`);
+  svg.appendChild(base);
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("points", series.map((v, i) => `${x(i)},${y(v)}`).join(" "));
+  line.setAttribute("stroke", up ? "var(--up)" : "var(--down)");
+  line.setAttribute("vector-effect", "non-scaling-stroke");
+  svg.appendChild(line);
+}
+
+document.getElementById("dateline").textContent =
+  new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }) +
+  " · click a card for the chart and headlines";
+document.getElementById("built-at").textContent =
+  new Date(DATA.builtAt).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+
+const grid = document.getElementById("grid");
+DATA.companies.forEach(c => {
+  const up = c.changePct >= 0;
+  const card = document.createElement("button");
+  card.className = "co";
+  card.type = "button";
+  card.innerHTML = `
+    <div class="co-top"><span class="tick"></span><span class="badge"></span></div>
+    <div class="co-name"></div>
+    <svg class="spark" preserveAspectRatio="none"></svg>
+    <div class="co-nums"><span class="price"></span><span class="delta ${up ? "up" : "down"}"></span></div>`;
+  card.querySelector(".tick").textContent = c.symbol;
+  card.querySelector(".badge").textContent = c.badge;
+  card.querySelector(".co-name").textContent = c.name;
+  card.querySelector(".price").textContent = "$" + c.price.toLocaleString("en-US");
+  card.querySelector(".delta").textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "%";
+  drawSpark(card.querySelector(".spark"), c.spark, c.prevClose, up);
+  card.addEventListener("click", () => openCompany(c));
+  grid.appendChild(card);
+});
+
+const modal = document.getElementById("modal");
+function openCompany(c) {
+  const up = c.changePct >= 0;
+  document.getElementById("m-badge").textContent = c.badge;
+  document.getElementById("m-tick").textContent = c.symbol;
+  document.getElementById("m-name").textContent = c.name;
+  document.getElementById("m-price").textContent = "$" + c.price.toLocaleString("en-US");
+  const delta = document.getElementById("m-delta");
+  delta.textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "% today";
+  delta.className = "delta " + (up ? "up" : "down");
+  document.getElementById("m-prev").textContent = "$" + c.prevClose.toLocaleString("en-US");
+  document.getElementById("m-low").textContent = "$" + c.dayLow.toLocaleString("en-US");
+  document.getElementById("m-high").textContent = "$" + c.dayHigh.toLocaleString("en-US");
+  drawSpark(document.getElementById("m-spark"), c.spark, c.prevClose, up);
+
+  const list = document.getElementById("m-news");
+  list.innerHTML = "";
+  if (c.news.length === 0) {
+    const li = document.createElement("li");
+    li.style.cssText = "color:var(--muted);font-size:0.9rem;padding:10px 2px";
+    li.textContent = "No recent headlines for this ticker.";
+    list.appendChild(li);
+  }
+  c.news.forEach(n => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = n.link; a.target = "_blank"; a.rel = "noopener";
+    const t = document.createElement("div");
+    t.className = "t"; t.textContent = n.title;
+    const time = document.createElement("time");
+    time.textContent = timeAgo(n.published);
+    a.appendChild(t); a.appendChild(time);
+    li.appendChild(a); list.appendChild(li);
+  });
+  document.getElementById("m-link").href = "https://finance.yahoo.com/quote/" + encodeURIComponent(c.symbol);
+  modal.showModal();
+}
+document.getElementById("modal-close").addEventListener("click", () => modal.close());
+modal.addEventListener("click", e => { if (e.target === modal) modal.close(); });
+</script>
+</body>
+</html>

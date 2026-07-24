@@ -1,0 +1,1705 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>why is money like this?</title>
+<style>
+  :root {
+    --bg: #faf8f4;
+    --ink: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #e2ddd3;
+    --card: #ffffff;
+    --accent: #b3261e;
+    --chip: #f0ece3;
+    --up: #1e9e4a;
+    --down: #d33a2f;
+    --tickblue: #16368e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161513;
+      --ink: #ece9e2;
+      --muted: #9a968d;
+      --line: #2e2c27;
+      --card: #201f1c;
+      --accent: #e5544b;
+      --chip: #2a2823;
+      --up: #3fbf6f;
+      --down: #e5544b;
+      --tickblue: #8ab0ff;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.45;
+  }
+  /* the ambiance: a breathing aurora above, darkness pressing in from the edges */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(55% 40% at 30% -5%, rgba(122, 78, 220, 0.13), transparent 70%),
+      radial-gradient(45% 35% at 85% 0%, rgba(179, 38, 30, 0.08), transparent 70%),
+      radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.10) 100%);
+    animation: breathe 11s ease-in-out infinite;
+  }
+  @media (prefers-color-scheme: dark) {
+    body::before {
+      background:
+        radial-gradient(55% 40% at 30% -5%, rgba(122, 78, 220, 0.16), transparent 70%),
+        radial-gradient(45% 35% at 85% 0%, rgba(229, 84, 75, 0.07), transparent 70%),
+        radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.45) 100%);
+    }
+  }
+  @keyframes breathe { 0%, 100% { opacity: 0.65; } 50% { opacity: 1; } }
+  @media (prefers-reduced-motion: reduce) { body::before { animation: none; } }
+  .wrap { position: relative; z-index: 1; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* ---------- masthead ---------- */
+  header { border-bottom: 3px double var(--line); padding: 26px 0 18px; }
+  .mast-top {
+    display: flex; flex-wrap: wrap; align-items: baseline;
+    justify-content: space-between; gap: 10px;
+  }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.45rem, 3.6vw, 2.2rem);
+    letter-spacing: 0.01em; font-style: italic; max-width: 850px; line-height: 1.2;
+  }
+  h1 .dot { color: var(--accent); font-style: normal; }
+  .dateline { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; }
+  .status-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--chip); border: 1px solid var(--line);
+    border-radius: 999px; padding: 7px 14px; font-size: 0.9rem;
+    color: inherit; font-family: inherit;
+  }
+  .chip[hidden] { display: none; }
+  button.chip { cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+  button.chip:hover { transform: translateY(-1px); box-shadow: 0 3px 10px rgba(0,0,0,0.12); }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+
+  /* ---------- company cards ---------- */
+  .co-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+  .co {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; cursor: pointer; text-align: left; color: inherit; font: inherit;
+    display: flex; flex-direction: column; gap: 8px; position: relative;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+  .co:hover, .co:focus-visible {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 16px 38px rgba(0,0,0,0.28);
+    border-color: var(--tickblue);
+    z-index: 2;
+    outline: none;
+  }
+  .co-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .tick { font-weight: 800; font-size: 1.05rem; letter-spacing: 0.02em; color: var(--tickblue); }
+  .badge {
+    font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px;
+    color: var(--muted); white-space: nowrap;
+  }
+  .co-name { color: var(--muted); font-size: 0.8rem; min-height: 2.3em; }
+  .co-nums { display: flex; justify-content: space-between; align-items: baseline; }
+  .co .price { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .delta { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .spark { width: 100%; height: 40px; }
+  .spark polyline, .bigspark polyline { fill: none; stroke-width: 2; }
+  .spark .base, .bigspark .base { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+  .bigspark { width: 100%; height: 110px; margin: 14px 0 4px; }
+  .bigspark polyline { stroke-width: 2.5; }
+  .co-about { color: var(--muted); font-size: 0.92rem; font-style: italic; margin-top: 4px; }
+  .co-summary { font-size: 0.98rem; margin: 6px 0 16px; }
+  .m-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-right: 40px; }
+  .m-head h2 { font-family: Georgia, serif; font-size: 1.45rem; }
+  .m-price { text-align: right; white-space: nowrap; }
+  .m-price .price { font-size: 1.4rem; font-weight: 700; }
+  .stats { display: flex; gap: 18px; color: var(--muted); font-size: 0.82rem; margin-bottom: 14px; flex-wrap: wrap; }
+  .stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .news-list { list-style: none; margin: 8px 0 4px; }
+  .news-list a { display: block; padding: 9px 2px; border-top: 1px solid var(--line); text-decoration: none; color: inherit; }
+  .news-list a:hover .t { color: var(--accent); }
+  .news-list .t { font-size: 0.92rem; font-weight: 600; line-height: 1.35; }
+  .news-list time { color: var(--muted); font-size: 0.76rem; }
+  .chip b { font-variant-numeric: tabular-nums; }
+  .chip .sub { color: var(--muted); font-size: 0.8rem; }
+  /* ---------- daily quote ---------- */
+  .quote {
+    margin: 22px auto 2px; max-width: 720px; text-align: center;
+    font-family: Georgia, serif; font-style: italic;
+    font-size: 1.08rem; line-height: 1.5;
+  }
+  .quote::before {
+    content: "✦"; display: block; color: #9f86ff; font-style: normal;
+    font-size: 0.85rem; margin-bottom: 6px; opacity: 0.8;
+  }
+  .quote .who {
+    display: block; margin-top: 6px; color: var(--muted);
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    font-style: normal; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.1em;
+  }
+
+  /* ---------- stories ---------- */
+  .section-label {
+    margin: 26px 0 14px; color: var(--muted);
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.12em;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
+  .kicker { color: var(--accent); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* ---------- the wire (marquee river) ---------- */
+  .river-label { display: flex; align-items: baseline; gap: 10px; }
+  .river-label .live-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    display: inline-block; animation: pulse 1.6s ease infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+  .river {
+    overflow: hidden; margin: 0 -20px 8px; padding: 6px 0 14px;
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  }
+  .river-track { display: inline-flex; gap: 14px; will-change: transform; animation: drift linear infinite; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .river:hover .river-track { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) { .river-track { animation: none; } }
+  .river-item {
+    flex: none; width: 230px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; padding: 12px 14px; cursor: pointer; text-align: left;
+    color: inherit; font: inherit; display: flex; flex-direction: column; gap: 6px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .river-item:hover {
+    transform: translateY(-4px) scale(1.04); border-color: var(--accent);
+    box-shadow: 0 10px 26px rgba(0,0,0,0.25);
+  }
+  .river-item .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .river-item .fc-emoji { font-size: 1.2rem; }
+  .river-item h4 {
+    font-family: Georgia, serif; font-size: 0.94rem; line-height: 1.3; font-weight: 600;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    min-height: 3.7em;
+  }
+  .river-item.t-bad2 { background: #8e1d14; color: #fff; border-color: #8e1d14; }
+  .river-item.t-bad1 { background: #f7e0dd; border-color: #e8c1bc; }
+  .river-item.t-good2 { background: #14652f; color: #fff; border-color: #14652f; }
+  .river-item.t-good1 { background: #ddf0e2; border-color: #bcdec7; }
+  .river-item.t-bad2 .kicker, .river-item.t-good2 .kicker { color: rgba(255,255,255,0.85); }
+  @media (prefers-color-scheme: dark) {
+    .river-item.t-bad2 { background: #6b1710; border-color: #8e2a20; }
+    .river-item.t-bad1 { background: #33201d; border-color: #4d2b26; color: var(--ink); }
+    .river-item.t-good2 { background: #124d26; border-color: #1e6b38; }
+    .river-item.t-good1 { background: #1c2a20; border-color: #2b4433; color: var(--ink); }
+  }
+
+  /* ---------- story flashcards ---------- */
+  .fc { position: relative; height: 205px; perspective: 1100px; cursor: pointer; }
+  .fc:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
+  .fc-inner {
+    position: absolute; inset: 0; transform-style: preserve-3d;
+    transition: transform 0.55s cubic-bezier(0.25, 0.7, 0.3, 1);
+  }
+  .fc.flipped .fc-inner { transform: rotateY(180deg); }
+  .fc-front, .fc-back {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px 14px; display: flex; flex-direction: column;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .fc:hover .fc-front, .fc:hover .fc-back {
+    box-shadow: 0 8px 22px rgba(0,0,0,0.16); border-color: var(--muted);
+  }
+  .fc-front h3 {
+    font-family: Georgia, serif; font-size: 1.13rem; line-height: 1.32; font-weight: 600;
+    margin: auto 0; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .fc-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+  .fc-foot time { color: var(--muted); font-size: 0.76rem; }
+  .fc-hint { color: var(--muted); font-size: 0.72rem; opacity: 0.7; }
+  .fc-back { transform: rotateY(180deg); gap: 10px; }
+  .fc-back p { font-size: 0.92rem; line-height: 1.45; flex: 1; overflow-y: auto; margin-top: 4px; }
+  .fc-back .btn { align-self: flex-start; padding: 8px 14px; font-size: 0.85rem; }
+
+  .fc-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .fc-emoji { font-size: 1.5rem; line-height: 1; }
+
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+  .fc, .co { animation: rise 0.45s ease backwards; }
+  @media (prefers-reduced-motion: reduce) { .fc, .co { animation: none; } }
+
+  /* ---------- swipe deck ---------- */
+  .swipe-btn {
+    margin-left: 12px; padding: 4px 12px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--accent); background: transparent; color: var(--accent);
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .swipe-btn:hover { background: var(--accent); color: #fff; }
+  #deck {
+    position: fixed; inset: 0; z-index: 60; display: none;
+    background: rgba(12, 9, 6, 0.92); backdrop-filter: blur(8px);
+  }
+  #deck.open { display: flex; flex-direction: column; align-items: center; }
+  .deck-vignette {
+    position: absolute; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.55) 78%, rgba(0,0,0,0.92) 100%);
+  }
+  .deck-glow {
+    position: absolute; top: 0; bottom: 0; width: 30vw;
+    pointer-events: none; opacity: 0; transition: opacity 0.12s ease; z-index: 4;
+  }
+  #glow-left { left: 0; background: linear-gradient(to right, rgba(190, 34, 24, 0.65), transparent); }
+  #glow-right { right: 0; background: linear-gradient(to left, rgba(34, 160, 82, 0.55), transparent); }
+  #deck.q-mode #glow-left { background: linear-gradient(to right, rgba(122, 78, 220, 0.6), transparent); }
+  #deck.q-mode #glow-right { background: linear-gradient(to left, rgba(122, 78, 220, 0.6), transparent); }
+
+  /* philosophical question cards */
+  .dcard-q .dcard-front, .dcard-q .dcard-back {
+    background: linear-gradient(160deg, #1c1233, #120b22);
+    border-color: #4a3580; color: #efeaff;
+  }
+  .dcard-q .dcard-front .kicker, .dcard-q .dcard-back .kicker { color: #b9a5ff; }
+  .dcard-q .dcard-front h3 { font-style: italic; font-size: 1.85rem; }
+  .dcard-q .dcard-front time, .dcard-q .dcard-hint { color: rgba(233,226,255,0.55); }
+  .dcard-q .dcard-back p { color: #e6defc; }
+  .q-mark { font-size: 3rem; margin: 4px 0 10px; }
+  .q-answers {
+    display: flex; justify-content: space-between; gap: 12px;
+    margin-top: auto; padding-top: 14px; color: #b9a5ff; font-size: 0.88rem; font-weight: 600;
+  }
+  .dcard-q .stamp-save, .dcard-q .stamp-skip { color: #d7a54a; border-color: #d7a54a; font-size: 1.15rem; }
+  .q-choices { display: flex; flex-direction: column; gap: 10px; margin-top: auto; padding-top: 16px; }
+  .q-choice {
+    padding: 13px 16px; border-radius: 10px; border: 1px solid #4a3580;
+    background: rgba(255,255,255,0.06); color: #efeaff; cursor: pointer;
+    font-size: 0.96rem; font-family: inherit; text-align: left;
+    transition: background 0.12s ease, transform 0.12s ease;
+  }
+  .q-choice:hover { background: #4a3580; transform: translateX(4px); }
+  .deck-toast {
+    position: absolute; top: 72px; left: 50%; transform: translateX(-50%);
+    background: #241a44; border: 1px solid #4a3580; color: #cfc2ff;
+    padding: 9px 18px; border-radius: 999px; font-size: 0.85rem; white-space: nowrap;
+    opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 10;
+  }
+  .deck-toast.show { opacity: 1; }
+  .model-box {
+    background: var(--chip); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; margin: 12px 0 6px;
+  }
+  .model-box p { font-size: 0.88rem; margin-top: 4px; }
+  #model-themes { color: var(--muted); }
+  .match-note {
+    color: #9f86ff; font-size: 0.7rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
+  }
+  .phil-row { padding: 10px 2px; border-top: 1px solid var(--line); }
+  .phil-q { font-size: 0.9rem; font-weight: 600; line-height: 1.35; }
+  .phil-tally { color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
+  .phil-tally .lead { color: #9f86ff; font-weight: 700; }
+  .deck-top {
+    width: min(560px, 94vw); display: flex; align-items: center; gap: 14px;
+    padding: 20px 4px 10px; color: #f2efe8;
+  }
+  .deck-top .kicker { color: #f2efe8; font-size: 0.85rem; }
+  #deck-count { color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-left: auto; font-variant-numeric: tabular-nums; }
+  .deck-x {
+    position: static; width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(255,255,255,0.14); color: #fff; font-size: 1.05rem; line-height: 1; flex: none;
+  }
+  .deck-stage { position: relative; width: min(400px, 92vw); height: min(540px, 64vh); margin-top: 1vh; }
+  .dcard {
+    position: absolute; inset: 0; border-radius: 18px; cursor: grab;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    perspective: 1200px; background: transparent;
+  }
+  .dcard[data-pos="0"] { z-index: 3; }
+  .dcard[data-pos="1"] { z-index: 2; transform: translateY(16px) scale(0.955); }
+  .dcard[data-pos="2"] { z-index: 1; transform: translateY(30px) scale(0.91); }
+  .dcard.dragging { transition: none; cursor: grabbing; }
+  .dcard-inner {
+    position: absolute; inset: 0; transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.25, 0.7, 0.3, 1);
+  }
+  .dcard.flipped .dcard-inner { transform: rotateY(180deg); }
+  .dcard-front, .dcard-back {
+    position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+    padding: 26px 26px 20px; display: flex; flex-direction: column;
+  }
+  .dcard-back { transform: rotateY(180deg); }
+  .dcard-front .fc-emoji { font-size: 3.2rem; margin: 4px 0 12px; }
+  .dcard-front h3 {
+    font-family: Georgia, serif; font-size: 1.7rem; line-height: 1.28; font-weight: 600;
+    margin: 6px 0 auto; display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .dcard-front time, .dcard-back time { color: var(--muted); font-size: 0.8rem; }
+  .dcard-hint { color: var(--muted); font-size: 0.75rem; margin-top: 10px; }
+  .dcard-back p { font-size: 1.02rem; line-height: 1.5; flex: 1; overflow-y: auto; margin: 12px 0; }
+  .stamp {
+    position: absolute; top: 26px; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.1em;
+    padding: 6px 14px; border-radius: 8px; border: 3px solid; opacity: 0; pointer-events: none;
+    font-family: -apple-system, sans-serif; z-index: 5;
+  }
+  .stamp-save { left: 20px; color: #3fbf6f; border-color: #3fbf6f; transform: rotate(-14deg); }
+  .stamp-skip { right: 20px; color: #e5544b; border-color: #e5544b; transform: rotate(14deg); }
+  .deck-actions { display: flex; gap: 20px; margin: 24px 0 8px; }
+  .deck-actions button {
+    width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
+    font-size: 1.5rem; line-height: 1; color: #fff;
+    background: rgba(255,255,255,0.14); transition: transform 0.12s ease, background 0.12s ease;
+  }
+  .deck-actions button:hover { transform: scale(1.12); }
+  #deck-skip:hover { background: #b3382f; }
+  #deck-save:hover { background: #1e9e4a; }
+  .deck-hint { color: rgba(255,255,255,0.55); font-size: 0.78rem; padding-bottom: 18px; }
+  .deck-done {
+    position: absolute; inset: 0; border-radius: 18px; background: var(--card);
+    border: 1px solid var(--line); padding: 30px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 12px;
+  }
+  /* ---------- market recap show ---------- */
+  #show {
+    position: fixed; inset: 0; z-index: 70; display: none;
+    background: rgba(12, 9, 6, 0.94); backdrop-filter: blur(8px);
+  }
+  #show.open { display: flex; flex-direction: column; align-items: center; }
+  .show-top { width: min(620px, 94vw); display: flex; align-items: center; gap: 14px; padding: 18px 4px 14px; }
+  .show-progress { display: flex; gap: 6px; flex: 1; }
+  .seg { flex: 1; height: 3px; border-radius: 2px; background: rgba(255,255,255,0.22); overflow: hidden; }
+  .seg i { display: block; height: 100%; width: 0; background: #fff; }
+  .seg.done i { width: 100%; }
+  .seg.active i { animation: segfill var(--slide-ms, 9s) linear forwards; }
+  @keyframes segfill { from { width: 0; } to { width: 100%; } }
+  #show.paused .seg.active i { animation-play-state: paused; }
+  .show-card {
+    width: min(620px, 94vw); max-height: 68vh; overflow-y: auto;
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    padding: 28px 30px 24px; box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column;
+  }
+  .show-seq { opacity: 0; animation: fadeup 0.55s ease forwards; }
+  @keyframes fadeup { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+  .show-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .show-head h2 { font-family: Georgia, serif; font-size: 1.6rem; color: var(--tickblue); }
+  .show-price { text-align: right; white-space: nowrap; }
+  .show-price .price { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .show-spark { width: 100%; height: 150px; margin: 16px 0 6px; }
+  .show-spark polyline { fill: none; stroke-width: 3; }
+  .show-spark .base { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+  .show-about { color: var(--muted); font-style: italic; font-size: 0.95rem; margin-top: 2px; }
+  .show-sum { font-size: 1.05rem; line-height: 1.55; margin-top: 14px; }
+
+  .deck-done h3 { font-family: Georgia, serif; font-size: 1.5rem; }
+  .deck-done p { color: var(--muted); font-size: 0.95rem; }
+  .saved-list { list-style: none; width: 100%; max-height: 45%; overflow-y: auto; text-align: left; margin-top: 6px; }
+  .saved-list a { display: block; padding: 8px 4px; border-top: 1px solid var(--line); color: inherit; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+  .saved-list a:hover { color: var(--accent); }
+
+  /* tone tints: darker = more impactful */
+  .t-bad2 .fc-front { background: #8e1d14; border-color: #8e1d14; color: #fff; }
+  .t-bad1 .fc-front { background: #f7e0dd; border-color: #e8c1bc; }
+  .t-good2 .fc-front { background: #14652f; border-color: #14652f; color: #fff; }
+  .t-good1 .fc-front { background: #ddf0e2; border-color: #bcdec7; }
+  .t-bad2 .fc-front .kicker, .t-good2 .fc-front .kicker { color: rgba(255,255,255,0.85); }
+  .t-bad2 .fc-front time, .t-good2 .fc-front time,
+  .t-bad2 .fc-front .fc-hint, .t-good2 .fc-front .fc-hint { color: rgba(255,255,255,0.7); }
+  @media (prefers-color-scheme: dark) {
+    .t-bad2 .fc-front { background: #6b1710; border-color: #8e2a20; }
+    .t-bad1 .fc-front { background: #33201d; border-color: #4d2b26; }
+    .t-good2 .fc-front { background: #124d26; border-color: #1e6b38; }
+    .t-good1 .fc-front { background: #1c2a20; border-color: #2b4433; }
+    .t-bad1 .fc-front, .t-good1 .fc-front { color: var(--ink); }
+  }
+
+  /* ---------- modal ---------- */
+  dialog {
+    margin: auto; border: none; border-radius: 14px; padding: 0;
+    width: min(680px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    background: var(--card); color: var(--ink);
+    box-shadow: 0 24px 70px rgba(0,0,0,0.35);
+  }
+  dialog::backdrop { background: rgba(10, 8, 5, 0.55); backdrop-filter: blur(3px); }
+  .modal-img { width: 100%; max-height: 340px; object-fit: cover; display: block; }
+  .modal-body { padding: 22px 26px 26px; }
+  .modal-body .kicker { font-size: 0.78rem; }
+  .modal-body h2 { font-family: Georgia, serif; font-size: 1.5rem; line-height: 1.25; margin: 8px 0 6px; }
+  .modal-body time { color: var(--muted); font-size: 0.85rem; display: block; margin-bottom: 14px; }
+  .modal-body p { font-size: 1.02rem; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 12px; align-items: center; }
+  .btn {
+    display: inline-block; background: var(--accent); color: #fff;
+    padding: 10px 18px; border-radius: 8px; border: none;
+    font-size: 0.95rem; font-weight: 600; text-decoration: none; cursor: pointer;
+  }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+  .modal-close {
+    position: absolute; top: 12px; right: 12px;
+    width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+    background: rgba(0,0,0,0.55); color: #fff; font-size: 1.1rem; line-height: 1;
+  }
+  /* ---------- markets modal ---------- */
+  .idx-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0 22px; }
+  .idx {
+    background: var(--chip); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .idx .name { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .idx .price { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .idx .delta { font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mkt-list { list-style: none; display: flex; flex-direction: column; }
+  .mkt-list a {
+    display: flex; gap: 14px; align-items: center; text-decoration: none; color: inherit;
+    padding: 12px 4px; border-top: 1px solid var(--line);
+  }
+  .mkt-list a:hover h4 { color: var(--accent); }
+  .mkt-list img { width: 86px; aspect-ratio: 16/10; object-fit: cover; border-radius: 6px; flex: none; background: var(--chip); }
+  .mkt-list h4 { font-size: 0.95rem; line-height: 1.35; font-weight: 600; }
+  .mkt-list time { color: var(--muted); font-size: 0.76rem; display: block; margin-top: 3px; }
+
+  footer { margin-top: 44px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--line); padding-top: 14px; }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mast-top">
+      <h1 id="masthead"></h1>
+      <div class="dateline" id="dateline"></div>
+    </div>
+    <div class="status-row">
+      <span class="chip" id="weather-chip" title="Live weather in Rīga">
+        <span id="weather-icon">⏳</span>
+        <span><b id="weather-temp">–</b> <span class="sub" id="weather-desc">loading weather…</span></span>
+      </span>
+      <button type="button" class="chip" id="market-chip" title="Today's markets — click for stories" hidden>
+        <span id="market-icon">📈</span>
+        <span><b id="market-main">–</b> <span class="sub">Markets · click for stories</span></span>
+      </button>
+      <button type="button" class="chip" id="saved-chip" title="Stories you saved while swiping" hidden>
+        <span>⭐</span>
+        <span><b id="saved-count">0</b> <span class="sub">saved</span></span>
+      </button>
+      <button type="button" class="chip" id="phil-chip" title="Your answers to the deck questions" hidden>
+        <span>✦</span>
+        <span><b id="phil-count">0</b> <span class="sub">answered</span></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="quote" id="quote"></div>
+
+  <div class="section-label river-label"><span class="live-dot"></span> The wire · click what catches your eye</div>
+  <div class="river"><div class="river-track" id="river-track"></div></div>
+
+  <div class="section-label">Biggest worldwide news · BBC
+    <button type="button" class="swipe-btn" id="swipe-world">🔥 Swipe mode</button></div>
+  <div class="grid" id="grid"></div>
+
+  <div class="section-label" style="margin-top: 40px">Companies to watch · trending &amp; biggest movers
+    <button type="button" class="swipe-btn" id="play-show">▶ Play recap</button></div>
+  <div class="co-grid" id="co-grid"></div>
+
+  <div class="section-label" style="margin-top: 40px">Biggest financial news · MarketWatch
+    <button type="button" class="swipe-btn" id="swipe-fin">🔥 Swipe mode</button></div>
+  <div class="grid" id="fin-grid"></div>
+
+  <footer>
+    World news from <a href="https://www.bbc.com/news/world" target="_blank" rel="noopener">BBC News</a> ·
+    markets &amp; companies from MarketWatch and Yahoo Finance, summaries by Claude ·
+    company data is information, not investment advice · weather by Open-Meteo ·
+    refreshes itself every 15 minutes · this copy built <span id="built-at"></span>
+  </footer>
+</div>
+
+<dialog id="co-modal">
+  <button class="modal-close" id="co-close" aria-label="Close">✕</button>
+  <div class="modal-body">
+    <div class="m-head">
+      <div>
+        <span class="kicker" id="co-badge"></span>
+        <h2 id="co-tick"></h2>
+        <div class="co-about" id="co-about"></div>
+      </div>
+      <div class="m-price">
+        <div class="price" id="co-price"></div>
+        <div class="delta" id="co-delta"></div>
+      </div>
+    </div>
+    <svg class="bigspark" id="co-spark" preserveAspectRatio="none"></svg>
+    <div class="stats">
+      <span>Prev close <b id="co-prev"></b></span>
+      <span>Day low <b id="co-low"></b></span>
+      <span>Day high <b id="co-high"></b></span>
+    </div>
+    <span class="kicker">Today's story</span>
+    <p class="co-summary" id="co-summary"></p>
+    <span class="kicker" style="color: var(--muted)">Latest headlines</span>
+    <ul class="news-list" id="co-news"></ul>
+    <div class="modal-actions" style="margin-top: 14px">
+      <a class="btn" id="co-link" target="_blank" rel="noopener">Open on Yahoo Finance ↗</a>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="market-modal">
+  <button class="modal-close" id="market-close" aria-label="Close">✕</button>
+  <div class="modal-body">
+    <span class="kicker">Markets today</span>
+    <h2>Stock market changes</h2>
+    <time id="market-asof"></time>
+    <div class="idx-grid" id="idx-grid"></div>
+    <span class="kicker" style="color: var(--muted)">Top stories — MarketWatch</span>
+    <ul class="mkt-list" id="mkt-list" style="margin-top: 10px"></ul>
+  </div>
+</dialog>
+
+<div id="show">
+  <div class="show-top">
+    <div class="show-progress" id="show-progress"></div>
+    <button type="button" class="deck-x" id="show-close" aria-label="Close">✕</button>
+  </div>
+  <div class="show-card" id="show-card"></div>
+  <div class="deck-actions">
+    <button type="button" id="show-prev" title="Previous">⏮</button>
+    <button type="button" id="show-pause" title="Pause / play (space)">⏸</button>
+    <button type="button" id="show-next" title="Next">⏭</button>
+  </div>
+  <div class="deck-hint">sit back — or space to pause, ← → to jump, esc to exit</div>
+</div>
+
+<div id="deck">
+  <div class="deck-vignette"></div>
+  <div class="deck-glow" id="glow-left"></div>
+  <div class="deck-glow" id="glow-right"></div>
+  <div class="deck-top">
+    <span class="kicker" id="deck-title"></span>
+    <span id="deck-count"></span>
+    <button type="button" class="deck-x" id="deck-close" aria-label="Close">✕</button>
+  </div>
+  <div class="deck-stage" id="deck-stage"></div>
+  <div class="deck-toast" id="deck-toast"></div>
+  <div class="deck-actions">
+    <button type="button" id="deck-skip" title="Skip (←)">✕</button>
+    <button type="button" id="deck-flip" title="Flip (space)">↺</button>
+    <button type="button" id="deck-save" title="Save (→)">⭐</button>
+  </div>
+  <div class="deck-hint">drag the card · ← skip · space to flip · save →</div>
+</div>
+
+<dialog id="phil-modal">
+  <button class="modal-close" id="phil-close" aria-label="Close">✕</button>
+  <div class="modal-body">
+    <span class="kicker" style="color:#9f86ff">Your philosophy</span>
+    <h2 style="font-family:Georgia,serif; margin:6px 0 4px">Where you lean</h2>
+    <div class="model-box">
+      <span class="kicker" style="color:var(--muted)">The model</span>
+      <p id="model-status"></p>
+      <p id="model-themes"></p>
+    </div>
+    <ul class="saved-list" id="phil-list" style="max-height:40vh"></ul>
+    <div class="modal-actions" style="margin-top:16px">
+      <button type="button" class="btn ghost" id="phil-clear">Forget it all</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="saved-modal">
+  <button class="modal-close" id="saved-close" aria-label="Close">✕</button>
+  <div class="modal-body">
+    <span class="kicker">Reading list</span>
+    <h2 style="font-family:Georgia,serif; margin:6px 0 4px">Saved stories</h2>
+    <ul class="saved-list" id="saved-modal-list" style="max-height:50vh"></ul>
+    <div class="modal-actions" style="margin-top:16px">
+      <button type="button" class="btn ghost" id="saved-clear">Clear all</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const DATA = {"articles": [{"title": "US hits dozens of countries with new wave of tariffs", "link": "https://www.bbc.co.uk/news/articles/cvgj61j6l08o?at_medium=RSS&at_campaign=rss", "description": "Imposed citing forced labour concerns, the levies replace a temporary global duty brought in after the US Supreme Court struck down tariffs in February.", "published": "2026-07-24T08:59:31+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/c18a/live/839d6280-8727-11f1-926f-c90d1bcfbc84.jpg", "section": "World", "impact": 3, "tone": "neutral", "emoji": "💼", "themes": ["money", "change"], "featured": true}, {"title": "US and Iran trade more strikes in Gulf as fears of escalation mount", "link": "https://www.bbc.co.uk/news/articles/c05ql5llj4do?at_medium=RSS&at_campaign=rss", "description": "It comes as Iran condemned the US plan to use frozen Iranian assets to pay for war damages.", "published": "2026-07-24T09:20:07+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/5b45/live/fd31d670-8719-11f1-926f-c90d1bcfbc84.jpg", "section": "World", "impact": 3, "tone": "neutral", "emoji": "⚔️", "themes": ["fear", "power"], "featured": true}, {"title": "Oil prices hit $100 for the first time since May", "link": "https://www.bbc.co.uk/news/articles/cx2djnzrqk2o?at_medium=RSS&at_campaign=rss", "description": "The price of Brent crude rose more than 6% on Thursday as the war in the Middle East continues to escalate.", "published": "2026-07-23T15:31:00+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/d668/live/b41122b0-867a-11f1-8c77-df97511a6b05.jpg", "section": "World", "impact": 3, "tone": "neutral", "emoji": "🛢️", "themes": ["money", "fear"], "featured": true}, {"title": "Saudis must recognise Israel for nuclear deal, says Trump", "link": "https://www.bbc.co.uk/news/articles/cwye71yq8wwo?at_medium=RSS&at_campaign=rss", "description": "The US president says the landmark agreement to help Saudis develop nuclear energy is dependent on it joining the Abraham Accords.", "published": "2026-07-23T17:58:02+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/3939/live/be2c4e20-86a0-11f1-926f-c90d1bcfbc84.jpg", "section": "World", "impact": 3, "tone": "neutral", "emoji": "🇸🇦", "themes": ["power", "change"], "featured": true}, {"title": "Tens of thousands evacuated from French tourist spot as wildfires spread", "link": "https://www.bbc.co.uk/news/articles/cdx82rl5g0do?at_medium=RSS&at_campaign=rss", "description": "The fire has raged in the region for several days with officials now ordering the evacuation of the entire Cap Ferret peninsula.", "published": "2026-07-24T10:50:26+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/cb06/live/2f9183e0-8738-11f1-a10e-a5d4f08bc20c.jpg", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇫🇷", "themes": ["fear", "change"], "featured": false}, {"title": "Indonesian babies were trafficked to Singapore. What happens to them now?", "link": "https://www.bbc.co.uk/news/articles/c7vgeredvlgo?at_medium=RSS&at_campaign=rss", "description": "At least 12 babies have been trafficked from Indonesia to Singapore, but what will happen to them remains unclear.", "published": "2026-07-23T23:19:58+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/d9a4/live/b3961660-8666-11f1-93cb-95d7eb12ec49.jpg", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇮🇩", "themes": ["cruelty", "power"], "featured": false}, {"title": "South Africa's president wins bid to temporarily halt impeachment inquiry over 'Farmgate'", "link": "https://www.bbc.co.uk/news/articles/cwymj9lkx13o?at_medium=RSS&at_campaign=rss", "description": "Ramaphosa has faced scrutiny following the theft of large sums of cash from his private farm in 2020.", "published": "2026-07-24T10:34:04+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/1b0b/live/5f10c1f0-873b-11f1-a10e-a5d4f08bc20c.jpg", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇿🇦", "themes": ["power", "truth"], "featured": false}, {"title": "Tech titan ordered to pay ex-wife $644m in divorce settlement", "link": "https://www.bbc.co.uk/news/articles/ckg68jky65eo?at_medium=RSS&at_campaign=rss", "description": "The divorce, involving the chairman of one of South Korea's biggest companies, has gripped the nation.", "published": "2026-07-24T08:30:58+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/ea53/live/d83d0260-8726-11f1-9733-edfe8d3e29a7.jpg", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇰🇷", "themes": ["money", "power"], "featured": false}, {"title": "India's 'cockroach' protesters hold talks with government as stalemate continues", "link": "https://www.bbc.co.uk/news/articles/cjwx4x04yqzo?at_medium=RSS&at_campaign=rss", "description": "The meeting came hours after activist Sonam Wangchuk announced he was ending his 26-day hunger strike.", "published": "2026-07-24T10:31:10+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/4614/live/a3ae37c0-873b-11f1-a10e-a5d4f08bc20c.jpg", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇮🇳", "themes": ["courage", "change"], "featured": false}, {"title": "Teen jailed for exam cheating in Guinea dies after sickle cell complications, father says", "link": "https://www.bbc.co.uk/news/articles/cn0nykz6lweo?at_medium=RSS&at_campaign=rss", "description": "Mamadou Djouma Bah, 17, was arrested and sentenced to prison for exam fraud earlier this month.", "published": "2026-07-23T16:26:49+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/097f/live/f3fca430-86b1-11f1-bee8-53ce494e1abc.png", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇬🇳", "themes": ["cruelty", "ordinary-life"], "featured": false}, {"title": "Ukraine's ousted defence minister insists on being reinstated", "link": "https://www.bbc.co.uk/news/articles/ce97nm53pgxo?at_medium=RSS&at_campaign=rss", "description": "Mykhailo Fedorov refuses President Zelensky's offer to accept an alternative post, as the battle of wills continues.", "published": "2026-07-23T17:37:59+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/bcc1/live/101e62c0-86b7-11f1-bb58-d3ffca85db6d.jpg", "section": "World", "impact": 2, "tone": "neutral", "emoji": "🇺🇦", "themes": ["power", "courage"], "featured": false}, {"title": "'Let's enjoy the ride' says Elon Musk, as AI fears mount", "link": "https://www.bbc.co.uk/news/articles/c4gkxppljpyo?at_medium=RSS&at_campaign=rss", "description": "Talking to The Economist, Musk said he doesn't care if people hate him and said he was not a racist.", "published": "2026-07-23T11:39:11+00:00", "image": "https://ichef.bbci.co.uk/ace/standard/800/cpsprodpb/4082/live/50efec00-8681-11f1-b60e-a7e0943a9c78.jpg", "section": "World", "impact": 1, "tone": "neutral", "emoji": "🤖", "themes": ["change", "ambition"], "featured": false}], "market": {"indices": [{"name": "S&P 500", "price": 7408.3, "changePct": -1.21}, {"name": "Dow Jones", "price": 51711.65, "changePct": -0.97}, {"name": "Nasdaq", "price": 25137.69, "changePct": -2.15}], "news": [{"title": "Verizon’s stock rises as earnings show the company is no longer a ‘hunting ground’", "link": "https://www.marketwatch.com/story/verizons-stock-rises-as-earnings-show-the-company-is-no-longer-a-hunting-ground-f63476b6?mod=mw_rss_topstories", "description": "The wireless company beat subscriber expectations while pulling back on costly promotions.", "published": "2026-07-24T11:08:00+00:00", "image": "https://images.mktw.net/im-08606818?width=700", "section": "Markets", "impact": 2, "tone": "good", "emoji": "📱", "themes": ["money", "effort"], "featured": false}, {"title": "‘We are not romantically involved’: I’m marrying my platonic best friend of 20 years. Should I leave him my home?", "link": "https://www.marketwatch.com/story/we-are-not-romantically-involved-im-marrying-my-platonic-best-friend-of-20-years-should-i-leave-him-my-home-3faa0a77?mod=mw_rss_topstories", "description": "“I own my home outright, have no children or other dependents.”", "published": "2026-07-24T11:00:00+00:00", "image": "https://images.mktw.net/im-26018558?width=700", "section": "Markets", "impact": 1, "tone": "neutral", "emoji": "🏠", "themes": ["ordinary-life", "money"], "featured": false}, {"title": "Why fixing the housing crisis for under-40s could trigger 10% Treasury yields", "link": "https://www.marketwatch.com/story/why-fixing-the-housing-crisis-for-under-40s-could-trigger-10-treasury-yields-04c65b78?mod=mw_rss_topstories", "description": "Bond prices will dive as structural inflation builds, says hedge fund manager", "published": "2026-07-24T10:46:00+00:00", "image": "https://images.mktw.net/im-55522709?width=700", "section": "Markets", "impact": 3, "tone": "bad", "emoji": "🏘️", "themes": ["fear", "change"], "featured": false}, {"title": "I will definitely claim Social Security early. Why do so few people talk about the elephant in the room?", "link": "https://www.marketwatch.com/story/i-will-claim-social-security-early-why-do-so-few-people-talk-about-the-elephant-in-the-room-64820675?mod=mw_rss_topstories", "description": "“The strongest argument for claiming benefits earlier goes beyond the traditional break-even analyses.”", "published": "2026-07-24T10:30:00+00:00", "image": "https://images.mktw.net/im-36497516?width=700", "section": "Markets", "impact": 1, "tone": "neutral", "emoji": "💵", "themes": ["money", "change"], "featured": false}, {"title": "China is winning the war in the Middle East, and gold and the dollar will start to feel it, strategist says", "link": "https://www.marketwatch.com/story/china-is-winning-the-war-in-the-middle-east-and-gold-and-the-dollar-will-start-to-feel-it-strategist-says-5a04a544?mod=mw_rss_topstories", "description": "China’s resilience in the face of the U.S.-Iranian conflict has one strategist saying that gold will be the big winner and the U.S. dollar the loser from the revolution in the world order.", "published": "2026-07-24T10:21:00+00:00", "image": "https://images.mktw.net/im-91771062?width=700", "section": "Markets", "impact": 3, "tone": "neutral", "emoji": "🪙", "themes": ["power", "money"], "featured": false}, {"title": "Here’s how much revenue S&P 500 companies make from overseas", "link": "https://www.marketwatch.com/story/heres-how-much-revenue-s-p-500-companies-make-from-overseas-ce10f434?mod=mw_rss_topstories", "description": "The U.S. stock market really is domestic — barely over a quarter of revenue from America’s top 500 companies comes from abroad.", "published": "2026-07-24T10:13:00+00:00", "image": "https://images.mktw.net/im-08806520?width=700", "section": "Markets", "impact": 1, "tone": "neutral", "emoji": "📊", "themes": ["money"], "featured": false}, {"title": "As geopolitical tension spikes, these market veterans say a classic stock-market buying opportunity has arrived", "link": "https://www.marketwatch.com/story/as-geopolitical-tension-spikes-these-market-veterans-say-a-classic-stock-market-buying-opportunity-has-arrived-b121be28?mod=mw_rss_topstories", "description": "The S&P 500 has moved below its 50-day moving average, presenting a strong buying opportunity, according to Yardeni Research and Fundstrat.", "published": "2026-07-24T10:09:00+00:00", "image": "https://images.mktw.net/im-07206169?width=700", "section": "Markets", "impact": 2, "tone": "good", "emoji": "📈", "themes": ["money", "courage"], "featured": false}, {"title": "‘I’m still confused’: I sold $80,000 in shares on June 30, so why didn’t I receive my dividend?", "link": "https://www.marketwatch.com/story/im-still-confused-i-sold-80-000-in-shares-on-june-30-so-why-didnt-i-receive-my-dividend-d066016c?mod=mw_rss_topstories", "description": "“To my surprise, the proceeds from the sale were credited to my money-market settlement fund.”", "published": "2026-07-24T10:00:00+00:00", "image": "https://images.mktw.net/im-56635839?width=700", "section": "Markets", "impact": 1, "tone": "neutral", "emoji": "💵", "themes": ["ordinary-life", "money"], "featured": false}, {"title": "Here’s what each additional month of Iran-conflict disruption means for oil prices", "link": "https://www.marketwatch.com/story/heres-what-each-additional-month-of-iran-conflict-disruption-means-for-oil-prices-e980e9d9?mod=mw_rss_topstories", "description": "JPMorgan analysts said oil has been remarkably restrained despite fresh hostilities over the Iran war, but much depends on China.", "published": "2026-07-24T09:49:00+00:00", "image": "https://images.mktw.net/im-15719587?width=700", "section": "Markets", "impact": 2, "tone": "neutral", "emoji": "🛢️", "themes": ["money", "change"], "featured": false}]}, "companies": [{"symbol": "INTC", "badge": "Trending", "name": "Intel Corporation", "price": 100.23, "changePct": -2.33, "prevClose": 102.62, "dayHigh": 104.18, "dayLow": 99.23, "spark": [103.6999, 102.17, 102.99, 103.5407, 102.08, 101.8, 100.23, 100.6682, 100.69, 101.29, 101.4305, 102.25, 101.95, 101.395, 100.9, 100.87, 100.1899, 99.67, 99.3607, 99.51, 99.71, 99.79, 99.72, 100.63, 99.72, 100.23, 100.23], "news": [{"title": "Dow Jones Futures Rise As Oil Prices Retreat; Intel Jumps After Google, Tesla Dive", "link": "https://finance.yahoo.com/m/96fdd7c6-3e7b-334a-a08e-b91b60ced4b6/dow-jones-futures-rise-as-oil.html?.tsrc=rss", "published": "2026-07-24T11:24:18+00:00"}, {"title": "Intel rises as strong forecasts signal AI boost for turnaround", "link": "https://finance.yahoo.com/technology/ai/articles/intel-rises-strong-forecasts-signal-103424987.html?.tsrc=rss", "published": "2026-07-24T10:34:24+00:00"}, {"title": "Intel shares rise after AI-driven revenue beats expectations and outlook improves", "link": "https://investorshub.advfn.com/market-news/article/32562/intel-shares-rise-after-ai-driven-revenue-beats-expectations-and-outlook-improves?.tsrc=rss", "published": "2026-07-24T10:33:30+00:00"}, {"title": "Middle East tensions and new U.S. tariffs dominate market attention: Dow Jones, S&P, Nasdaq, Wall Street Futures", "link": "https://investorshub.advfn.com/market-news/article/32553/middle-east-tensions-and-new-u-s-tariffs-dominate-market-attention-dow-jones-sp-nasdaq-wall-street-futures?.tsrc=rss", "published": "2026-07-24T09:54:32+00:00"}], "about": "Intel designs and manufactures semiconductor processors and computing platforms for data centers and personal computers.", "newsSummary": "Intel reported AI-driven revenue growth that beat expectations and improved its outlook, signaling progress on its turnaround strategy. The stock declined 2.33%, likely due to profit-taking or broader market headwinds despite the positive earnings news."}, {"symbol": "ORCL", "badge": "Trending", "name": "Oracle Corporation", "price": 120.04, "changePct": -4.61, "prevClose": 125.84, "dayHigh": 124.7, "dayLow": 119.44, "spark": [123.79, 123.52, 123.445, 123.75, 122.1101, 121.35, 120.165, 120.035, 120.235, 120.5691, 120.6951, 121.22, 120.7306, 121.29, 121.0599, 120.701, 120.25, 120.19, 119.88, 119.645, 119.69, 120.05, 119.805, 120.04, 119.7051, 120.035, 120.04], "news": [{"title": "Oracle Secures Nearly $7 Billion Enterprise Software Contract With Department of War", "link": "https://finance.yahoo.com/technology/articles/oracle-secures-nearly-7-billion-105813285.html?.tsrc=rss", "published": "2026-07-24T10:58:13+00:00"}, {"title": "Meta’s Latest AI Data Center Debt Raise Could Reportedly Cost More Than Its 2025 Record Deal", "link": "https://stocktwits.com/news-articles/markets/equity/meta-s-latest-ai-data-center-debt-raise-could-reportedly-cost-more-than-its-2025-record-deal/cZZYrCsR7yK?.tsrc=rss", "published": "2026-07-24T10:49:24+00:00"}, {"title": "The Pentagon Just Threw Larry Ellison a $7 Billion Lifeline. Will It Be Enough to Stop the Oracle Crash?", "link": "https://247wallst.com/investing/2026/07/24/the-pentagon-just-threw-larry-ellison-a-7-billion-lifeline-will-it-be-enough-to-stop-the-oracle-crash/?.tsrc=rss", "published": "2026-07-24T10:06:48+00:00"}, {"title": "Oracle’s $7B Pentagon Deal Win Sparks 'Buy' Calls From Retail Traders As ORCL Rebounds Premarket", "link": "https://stocktwits.com/news-articles/markets/equity/oracle-s-7-b-pentagon-deal-win-sparks-buy-calls-from-retail-traders-as-orcl-rebounds-premarket/cZZYpZRR7yO?.tsrc=rss", "published": "2026-07-24T09:18:58+00:00"}], "about": "Oracle provides enterprise database software, cloud infrastructure, and business applications to large organizations.", "newsSummary": "Oracle secured approximately $7 billion in major contracts, including a significant Pentagon enterprise software deal, strengthening its cloud and defense business. The stock fell 4.61%, suggesting investors viewed the wins as insufficient to offset longer-term growth concerns or market volatility."}, {"symbol": "AMKR", "badge": "Trending", "name": "Amkor Technology, Inc.", "price": 65.33, "changePct": -2.45, "prevClose": 66.97, "dayHigh": 67.52, "dayLow": 63.82, "spark": [66.88, 66.56, 66.185, 66.19, 65.6539, 65.02, 64.07, 64.14, 64.2, 64.64, 64.8305, 65.42, 65.22, 65.105, 65.085, 65.22, 64.815, 64.6, 64.7775, 64.9, 65.055, 64.99, 64.885, 65.24, 64.9, 65.31, 65.33], "news": [{"title": "AMKR Stock Soars 12% After-Hours — NVIDIA And Amkor Partner In $1.5B Deal To Boost Semiconductor Packaging", "link": "https://stocktwits.com/news-articles/markets/equity/nvidia-and-amkor-partner-in-1-5-b-deal-to-boost-semiconductor-packaging/cZZF24BR7U8?.tsrc=rss", "published": "2026-07-23T22:54:22+00:00"}, {"title": "Amkor Technology (AMKR) Declines More Than Market: Some Information for Investors", "link": "https://finance.yahoo.com/markets/stocks/articles/amkor-technology-amkr-declines-more-220003615.html?.tsrc=rss", "published": "2026-07-23T22:00:03+00:00"}, {"title": "Amkor Technology surges 16% on $1.5B Nvidia deal", "link": "https://finance.yahoo.com/technology/ai/articles/amkor-technology-surges-16-1-215534452.html?.tsrc=rss", "published": "2026-07-23T21:55:34+00:00"}, {"title": "Nvidia, Amkor strike $1.5 billion chip packaging deal", "link": "https://finance.yahoo.com/technology/ai/articles/nvidia-amkor-strike-1-5-214417511.html?.tsrc=rss", "published": "2026-07-23T21:44:17+00:00"}], "about": "Amkor provides semiconductor packaging, testing, and interconnect services for chip manufacturers.", "newsSummary": "Amkor announced a $1.5 billion strategic partnership with NVIDIA for advanced chip packaging, driving significant after-hours gains. The stock declined 2.45% during regular trading hours before the partnership-driven rally, reflecting initial market weakness followed by strong post-announcement momentum."}, {"symbol": "SAP", "badge": "Trending", "name": "SAP SE", "price": 146.38, "changePct": -1.59, "prevClose": 148.75, "dayHigh": 150.23, "dayLow": 144.97, "spark": [147.3, 147.1, 146.77, 146.21, 145.15, 145.33, 145.34, 145.24, 145.525, 145.665, 145.94, 146.6, 146.56, 146.56, 146.37, 146.03, 146.2, 146.17, 146.08, 146.31, 146.27, 146.225, 146.065, 146.57, 146.45, 146.19, 146.38], "news": [{"title": "SAP Stock Jumps as Earnings Beat Eases AI Fears", "link": "https://finance.yahoo.com/m/d40eff95-de56-3b9f-9d57-954bc93513dd/sap-stock-jumps-as-earnings.html?.tsrc=rss", "published": "2026-07-24T08:37:00+00:00"}, {"title": "SAP (XTRA:SAP) Leans On AI And Q2 Results As Undervalued Narrative Holds", "link": "https://finance.yahoo.com/technology/ai/articles/sap-xtra-sap-leans-ai-060955610.html?.tsrc=rss", "published": "2026-07-24T06:09:55+00:00"}, {"title": "SAP SE (SAP) Q2 2026 Earnings Call Highlights: Cloud Growth and AI Investments Drive Performance", "link": "https://finance.yahoo.com/technology/ai/articles/sap-se-sap-q2-2026-050049121.html?.tsrc=rss", "published": "2026-07-24T05:00:49+00:00"}, {"title": "SAP Q2 Earnings Call Highlights", "link": "https://www.marketbeat.com/instant-alerts/sap-q2-earnings-call-highlights-2026-07-23/?utm_source=yahoofinance&utm_medium=yahoofinance&.tsrc=rss", "published": "2026-07-24T01:05:33+00:00"}], "about": "SAP develops enterprise resource planning (ERP) software and cloud applications for businesses.", "newsSummary": "SAP beat Q2 earnings expectations with strong cloud growth and successful AI investments, easing investor concerns about artificial intelligence-related disruption. The stock declined 1.59%, likely due to profit-taking after recent gains despite solid operational performance."}, {"symbol": "NVCR", "badge": "Top gainer", "name": "NovoCure Limited", "price": 19.99, "changePct": 28.39, "prevClose": 15.57, "dayHigh": 20.55, "dayLow": 18.0, "spark": [20.07, 19.8375, 19.695, 19.37, 19.29, 19.65, 19.35, 19.27, 19.37, 19.5, 19.51, 19.31, 19.29, 19.445, 20.13, 19.98, 19.86, 19.86, 19.915, 19.99, 19.92, 20.18, 20.21, 20.01, 19.78, 19.99, 19.99], "news": [{"title": "Why Did CSX, UNP, NVCR Stocks Surge To 52-Week Highs Today?", "link": "https://stocktwits.com/news-articles/markets/equity/why-did-csx-unp-nvcr-stocks-surge-to-52-week-highs-today/cZZYK8FR7Uz?.tsrc=rss", "published": "2026-07-24T03:45:46+00:00"}, {"title": "Novocure (NVCR) Hits New High on Optimistic Outlook, FDA Approval Hopes", "link": "https://finance.yahoo.com/markets/stocks/articles/novocure-nvcr-hits-high-optimistic-004318488.html?.tsrc=rss", "published": "2026-07-24T00:43:18+00:00"}, {"title": "Novocure Flashes A Bullish Signal As It Breaks Out. Have Shares 'Turned A Corner?'", "link": "https://finance.yahoo.com/m/e15fbb46-def3-31ea-9edf-3ccb614a3f1e/novocure-flashes-a-bullish.html?.tsrc=rss", "published": "2026-07-23T20:16:33+00:00"}, {"title": "NVCR Stock Surges 28% For Best Day In Over 1.5 Years — What’s Driving The Rally?", "link": "https://stocktwits.com/news-articles/markets/equity/nvcr-stock-surges-28-for-best-day-in-over-1-5-years-what-s-driving-the-rally/cZZnCMfR7UZ?.tsrc=rss", "published": "2026-07-23T20:09:36+00:00"}], "about": "NovoCure develops tumor-treating electric field (TTF) technology used as a medical device to treat certain cancers.", "newsSummary": "NovoCure hit 52-week highs amid optimism surrounding FDA approval prospects and regulatory progress for its innovative cancer treatment technology. The stock surged 28.39%, reflecting strong investor confidence in the commercial potential of its medical device platform."}, {"symbol": "CLF", "badge": "Top gainer", "name": "Cleveland-Cliffs Inc.", "price": 10.96, "changePct": 15.98, "prevClose": 9.45, "dayHigh": 11.46, "dayLow": 10.63, "spark": [11.035, 11.0599, 11.225, 11.15, 11.185, 11.065, 10.895, 10.775, 11.045, 11.1205, 11.26, 11.415, 11.2901, 11.225, 11.405, 11.345, 11.305, 11.095, 11.0401, 11.1, 11.025, 11.05, 11.165, 11.135, 11.105, 10.95, 10.96], "news": [{"title": "Cleveland-Cliffs (CLF) Climbs 16% on Strong Earnings, Highly Upbeat Outlook", "link": "https://finance.yahoo.com/markets/stocks/articles/cleveland-cliffs-clf-climbs-16-011802271.html?.tsrc=rss", "published": "2026-07-24T01:18:02+00:00"}, {"title": "Cleveland-Cliffs (CLF) Q2 Earnings: How Key Metrics Compare to Wall Street Estimates", "link": "https://finance.yahoo.com/markets/stocks/articles/cleveland-cliffs-clf-q2-earnings-003002116.html?.tsrc=rss", "published": "2026-07-24T00:30:02+00:00"}, {"title": "Stock Market Today, July 23: Cleveland-Cliffs Stock Soars on Robust Steel Demand and Pricing", "link": "https://www.fool.com/coverage/stock-market-today/2026/07/23/stock-market-today-july-23-cleveland-cliffs-stock-soars-on-robust-steel-demand-and-pricing/?.tsrc=rss", "published": "2026-07-23T21:49:31+00:00"}, {"title": "Cleveland-Cliffs Inc (CLF) Q2 2026 Earnings Call Highlights: Strong EBITDA Growth and Positive ...", "link": "https://finance.yahoo.com/markets/stocks/articles/cleveland-cliffs-inc-clf-q2-210300937.html?.tsrc=rss", "published": "2026-07-23T21:03:00+00:00"}], "about": "Cleveland-Cliffs is an integrated iron ore and steel producer serving the North American automotive and industrial markets.", "newsSummary": "Cleveland-Cliffs delivered strong Q2 earnings and raised guidance, benefiting from robust domestic steel demand and favorable pricing dynamics. The stock gained 15.98%, reflecting investor optimism about sustained steel market strength and the company's operational execution."}, {"symbol": "LBRT", "badge": "Top loser", "name": "Liberty Energy Inc.", "price": 19.62, "changePct": -21.96, "prevClose": 25.14, "dayHigh": 25.75, "dayLow": 19.61, "spark": [23.84, 24.015, 24.23, 24.039, 23.24, 22.615, 22.02, 21.695, 21.6, 21.41, 21.45, 21.32, 21.38, 21.31, 21.09, 20.79, 20.85, 20.745, 20.8328, 20.785, 20.48, 20.26, 20.33, 20.11, 19.88, 19.61, 19.62], "news": [{"title": "Liberty Energy Q2 Earnings Call Highlights", "link": "https://www.marketbeat.com/instant-alerts/liberty-energy-q2-earnings-call-highlights-2026-07-23/?utm_source=yahoofinance&utm_medium=yahoofinance&.tsrc=rss", "published": "2026-07-23T21:07:29+00:00"}, {"title": "Liberty Energy Inc (LBRT) Q2 2026 Earnings Call Highlights: Strategic Growth Amid Market Volatility", "link": "https://finance.yahoo.com/energy/articles/liberty-energy-inc-lbrt-q2-210322837.html?.tsrc=rss", "published": "2026-07-23T21:03:22+00:00"}, {"title": "EnerCom Releases Presenter Lineup for the 31st EnerCom Denver - The Energy Investment Conference, August 17-19, 2026, in Denver, Colorado", "link": "https://finance.yahoo.com/energy/articles/enercom-releases-presenter-lineup-31st-200200013.html?.tsrc=rss", "published": "2026-07-23T20:02:00+00:00"}, {"title": "Liberty Energy (LBRT) Q2 Earnings and Revenues Surpass Estimates", "link": "https://finance.yahoo.com/markets/stocks/articles/liberty-energy-lbrt-q2-earnings-233503590.html?.tsrc=rss", "published": "2026-07-22T23:35:03+00:00"}], "about": "Liberty Energy provides hydraulic fracturing, pressure pumping, and other oilfield services to oil and gas operators.", "newsSummary": "Liberty Energy exceeded Q2 earnings and revenue estimates with strong operational results, but the company faced headwinds from broader energy market volatility and strategic challenges. The stock plummeted 21.96%, indicating investors reacted negatively to forward guidance or concerns about sustained demand in the energy services sector."}, {"symbol": "NU", "badge": "Most active", "name": "Nu Holdings Ltd.", "price": 14.19, "changePct": -2.21, "prevClose": 14.51, "dayHigh": 14.51, "dayLow": 14.09, "spark": [14.385, 14.315, 14.415, 14.425, 14.3466, 14.345, 14.2305, 14.175, 14.2, 14.255, 14.275, 14.285, 14.2223, 14.2801, 14.185, 14.165, 14.13, 14.115, 14.1017, 14.1324, 14.1619, 14.12, 14.1101, 14.175, 14.245, 14.19, 14.19], "news": [{"title": "Nu Holdings Ltd. (NU) Dips More Than Broader Market: What You Should Know", "link": "https://finance.yahoo.com/markets/stocks/articles/nu-holdings-ltd-nu-dips-214504014.html?.tsrc=rss", "published": "2026-07-23T21:45:04+00:00"}, {"title": "Nubank (NU) Is Buying Banco Porto Real To Secure A Full Brazilian Banking License", "link": "https://finance.yahoo.com/markets/stocks/articles/nubank-nu-buying-banco-porto-170928644.html?.tsrc=rss", "published": "2026-07-23T17:09:28+00:00"}, {"title": "MercadoLibre is Down 10% This Year But Its Relentless Growth Has One Analyst Predicting 55% Gains", "link": "https://247wallst.com/investing/2026/07/23/mercadolibre-is-down-10-this-year-but-its-relentless-growth-has-one-analyst-predicting-55-gains/?.tsrc=rss", "published": "2026-07-23T14:29:01+00:00"}, {"title": "OpenAI adds Nubank and BNY CEOs to board ahead of IPO", "link": "https://qz.com/openai-board-david-velez-robin-vince-ipo-072226?.tsrc=rss", "published": "2026-07-22T12:38:41+00:00"}], "about": "Nu Holdings operates Nubank, a digital banking platform providing financial services including deposits, payments, and lending across Latin America.", "newsSummary": "Nubank announced the acquisition of Banco Porto Real to obtain a full Brazilian banking license, enabling broader financial service offerings and regulatory compliance. The stock declined 2.21%, suggesting investors focused on acquisition costs and integration risks despite the strategic value of full banking status."}], "builtAt": "2026-07-24T11:35:31.839390+00:00"};
+
+const WMO = {
+  0:["☀️","Clear"],1:["🌤️","Mostly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
+  45:["🌫️","Fog"],48:["🌫️","Icy fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],
+  55:["🌧️","Heavy drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],
+  61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],
+  67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],
+  77:["❄️","Snow grains"],80:["🌦️","Light showers"],81:["🌧️","Showers"],82:["⛈️","Heavy showers"],
+  85:["🌨️","Snow showers"],86:["🌨️","Snow showers"],95:["⛈️","Thunderstorm"],
+  96:["⛈️","Thunderstorm"],99:["⛈️","Thunderstorm"]
+};
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + " min ago";
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+  const days = Math.round(hrs / 24);
+  return days + (days === 1 ? " day ago" : " days ago");
+}
+
+// ---------- daily quote ----------
+const QUOTES = [
+  ["The best way to predict the future is to create it.", "Peter Drucker"],
+  ["It always seems impossible until it's done.", "Nelson Mandela"],
+  ["Success is not final, failure is not fatal: it is the courage to continue that counts.", "Winston Churchill"],
+  ["What you do today can improve all your tomorrows.", "Ralph Marston"],
+  ["The secret of getting ahead is getting started.", "Mark Twain"],
+  ["Well done is better than well said.", "Benjamin Franklin"],
+  ["Whether you think you can or you think you can't, you're right.", "Henry Ford"],
+  ["Fall seven times, stand up eight.", "Japanese proverb"],
+  ["The harder I work, the luckier I get.", "Samuel Goldwyn"],
+  ["Do what you can, with what you have, where you are.", "Theodore Roosevelt"],
+  ["Everything you've ever wanted is on the other side of fear.", "George Addair"],
+  ["Action is the foundational key to all success.", "Pablo Picasso"],
+  ["If you're going through hell, keep going.", "Winston Churchill"],
+  ["Dream big and dare to fail.", "Norman Vaughan"],
+  ["The only way to do great work is to love what you do.", "Steve Jobs"],
+  ["Don't watch the clock; do what it does. Keep going.", "Sam Levenson"],
+  ["A journey of a thousand miles begins with a single step.", "Lao Tzu"],
+  ["Quality is not an act, it is a habit.", "Aristotle"],
+  ["He who has a why to live can bear almost any how.", "Friedrich Nietzsche"],
+  ["Amateurs sit and wait for inspiration; the rest of us just get up and go to work.", "Stephen King"],
+  ["You miss 100% of the shots you don't take.", "Wayne Gretzky"],
+  ["Discipline is choosing between what you want now and what you want most.", "Abraham Lincoln (attributed)"],
+  ["The obstacle is the way.", "Marcus Aurelius (paraphrased)"],
+  ["Luck is what happens when preparation meets opportunity.", "Seneca"],
+  ["We are what we repeatedly do. Excellence, then, is not an act, but a habit.", "Will Durant"],
+  ["Courage is not the absence of fear, but the triumph over it.", "Nelson Mandela"],
+  ["Start where you are. Use what you have. Do what you can.", "Arthur Ashe"],
+  ["Great things are done by a series of small things brought together.", "Vincent van Gogh"],
+  ["An investment in knowledge pays the best interest.", "Benjamin Franklin"],
+  ["It does not matter how slowly you go as long as you do not stop.", "Confucius"],
+  ["Perseverance is not a long race; it is many short races one after the other.", "Walter Elliot"],
+  ["Either you run the day or the day runs you.", "Jim Rohn"],
+  ["The best time to plant a tree was 20 years ago. The second best time is now.", "Chinese proverb"],
+  ["Hard choices, easy life. Easy choices, hard life.", "Jerzy Gregorek"],
+  ["Make each day your masterpiece.", "John Wooden"],
+  ["Energy and persistence conquer all things.", "Benjamin Franklin"],
+  ["What we fear doing most is usually what we most need to do.", "Tim Ferriss"],
+  ["You do not rise to the level of your goals. You fall to the level of your systems.", "James Clear"],
+  ["The man who moves a mountain begins by carrying away small stones.", "Confucius"],
+  ["Inspiration exists, but it has to find you working.", "Pablo Picasso"],
+];
+{
+  const now = new Date();
+  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const [text, who] = QUOTES[(now.getFullYear() + dayOfYear) % QUOTES.length];
+  const q = document.getElementById("quote");
+  q.append("“" + text + "”");
+  const span = document.createElement("span");
+  span.className = "who";
+  span.textContent = "— " + who;
+  q.appendChild(span);
+}
+
+// ---------- masthead: a question instead of a name ----------
+const MASTHEADS = [
+  "If the economy is booming, why is everyone tired",
+  "Who decided a number falling means people lose their homes",
+  "If everyone owes everyone, where did the money go",
+  "Why does the market panic faster than the people in it",
+  "Why is rent a number that only knows how to grow",
+  "Money isn't real — so why does it decide everything",
+  "Why can one tweet move a trillion dollars",
+  "Who sets the price of an hour of your life",
+  "If AI does the work, who gets the paycheck",
+  "Why is bread up 30% but your salary isn't",
+  "The market is calm. Why doesn't it feel that way",
+  "Whose crisis is it this time",
+  "Why do we save for a future that keeps getting more expensive",
+  "How is everything at a record high and out of reach at once",
+];
+{
+  const now = new Date();
+  const doy = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
+  const h1 = document.getElementById("masthead");
+  h1.textContent = MASTHEADS[(doy + 3) % MASTHEADS.length];
+  const q = document.createElement("span");
+  q.className = "dot";
+  q.textContent = "?";
+  h1.appendChild(q);
+}
+
+// ---------- dateline ----------
+document.getElementById("dateline").textContent =
+  new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+// ---------- weather (live) ----------
+fetch("https://api.open-meteo.com/v1/forecast?latitude=56.9496&longitude=24.1052&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m")
+  .then(r => r.json())
+  .then(d => {
+    const c = d.current;
+    const [icon, desc] = WMO[c.weather_code] || ["🌡️", ""];
+    document.getElementById("weather-icon").textContent = icon;
+    document.getElementById("weather-temp").textContent = Math.round(c.temperature_2m) + "°C";
+    document.getElementById("weather-desc").textContent =
+      "Rīga · " + desc + " · feels " + Math.round(c.apparent_temperature) + "°";
+  })
+  .catch(() => {
+    document.getElementById("weather-icon").textContent = "🌐";
+    document.getElementById("weather-desc").textContent = "weather unavailable (offline?)";
+  });
+
+// ---------- markets chip + popup ----------
+const mkt = DATA.market || { indices: [], news: [] };
+if (mkt.indices.length || mkt.news.length) {
+  const chip = document.getElementById("market-chip");
+  chip.hidden = false;
+  const sp = mkt.indices[0];
+  if (sp) {
+    const up = sp.changePct >= 0;
+    document.getElementById("market-icon").textContent = up ? "📈" : "📉";
+    const main = document.getElementById("market-main");
+    main.textContent = sp.name + " " + (up ? "+" : "") + sp.changePct.toFixed(2) + "%";
+    main.className = up ? "up" : "down";
+  } else {
+    document.getElementById("market-main").textContent = "Markets";
+  }
+
+  const idxGrid = document.getElementById("idx-grid");
+  mkt.indices.forEach(q => {
+    const up = q.changePct >= 0;
+    const tile = document.createElement("div");
+    tile.className = "idx";
+    tile.innerHTML = '<div class="name"></div><div class="price"></div><div class="delta"></div>';
+    tile.querySelector(".name").textContent = q.name;
+    tile.querySelector(".price").textContent = q.price.toLocaleString("en-US");
+    const d = tile.querySelector(".delta");
+    d.textContent = (up ? "▲ +" : "▼ ") + q.changePct.toFixed(2) + "%";
+    d.classList.add(up ? "up" : "down");
+    idxGrid.appendChild(tile);
+  });
+
+  const list = document.getElementById("mkt-list");
+  mkt.news.forEach(s => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = s.link;
+    a.target = "_blank";
+    a.rel = "noopener";
+    if (s.image) {
+      const img = document.createElement("img");
+      img.src = s.image;
+      img.alt = "";
+      img.onerror = () => img.remove();
+      a.appendChild(img);
+    }
+    const div = document.createElement("div");
+    const h = document.createElement("h4");
+    h.textContent = s.title;
+    div.appendChild(h);
+    const t = document.createElement("time");
+    t.textContent = timeAgo(s.published);
+    div.appendChild(t);
+    a.appendChild(div);
+    li.appendChild(a);
+    list.appendChild(li);
+  });
+
+  const marketModal = document.getElementById("market-modal");
+  document.getElementById("market-asof").textContent =
+    "as of last refresh · " + new Date(DATA.builtAt).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+  chip.addEventListener("click", () => marketModal.showModal());
+  document.getElementById("market-close").addEventListener("click", () => marketModal.close());
+  marketModal.addEventListener("click", e => { if (e.target === marketModal) marketModal.close(); });
+}
+
+// ---------- story flashcards ----------
+function toneClass(a) {
+  if (a.tone === "bad") return a.impact >= 3 ? " t-bad2" : " t-bad1";
+  if (a.tone === "good") return a.impact >= 3 ? " t-good2" : " t-good1";
+  return "";
+}
+
+function renderStories(list, container, colorByTone) {
+  list.forEach(a => {
+    const card = document.createElement("div");
+    card.className = "fc" + (colorByTone ? toneClass(a) : "");
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-expanded", "false");
+
+    const inner = document.createElement("div");
+    inner.className = "fc-inner";
+
+    const front = document.createElement("div");
+    front.className = "fc-front";
+    const top = document.createElement("div");
+    top.className = "fc-top";
+    if (a.section) {
+      const k = document.createElement("span");
+      k.className = "kicker";
+      k.textContent = a.section;
+      top.appendChild(k);
+    }
+    if (a.emoji) {
+      const e = document.createElement("span");
+      e.className = "fc-emoji";
+      e.textContent = a.emoji;
+      top.appendChild(e);
+    }
+    front.appendChild(top);
+    const h = document.createElement("h3");
+    h.textContent = a.title;
+    front.appendChild(h);
+    const foot = document.createElement("div");
+    foot.className = "fc-foot";
+    const time = document.createElement("time");
+    time.textContent = timeAgo(a.published);
+    foot.appendChild(time);
+    const hint = document.createElement("span");
+    hint.className = "fc-hint";
+    hint.textContent = "tap to flip ↻";
+    foot.appendChild(hint);
+    front.appendChild(foot);
+
+    const back = document.createElement("div");
+    back.className = "fc-back";
+    if (a.section) {
+      const k2 = document.createElement("span");
+      k2.className = "kicker";
+      k2.textContent = a.section;
+      back.appendChild(k2);
+    }
+    const p = document.createElement("p");
+    p.textContent = a.description || "No summary provided for this story — open the full article.";
+    back.appendChild(p);
+    const link = document.createElement("a");
+    link.className = "btn";
+    link.href = a.link;
+    link.target = "_blank";
+    link.rel = "noopener";
+    link.textContent = "Read full story ↗";
+    link.addEventListener("click", e => e.stopPropagation());
+    back.appendChild(link);
+
+    inner.appendChild(front);
+    inner.appendChild(back);
+    card.appendChild(inner);
+
+    const flip = () => {
+      const flipped = card.classList.toggle("flipped");
+      card.setAttribute("aria-expanded", String(flipped));
+    };
+    card.addEventListener("click", flip);
+    card.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); }
+    });
+    container.appendChild(card);
+  });
+}
+renderStories(DATA.articles, document.getElementById("grid"), false);
+renderStories((DATA.market && DATA.market.news) || [], document.getElementById("fin-grid"), true);
+
+// ---------- companies ----------
+function drawSpark(svg, series, prevClose, up) {
+  const W = 100, H = 100;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = "";
+  if (!series || series.length < 2) return;
+  const all = series.concat([prevClose]);
+  const min = Math.min(...all), max = Math.max(...all);
+  const span = (max - min) || 1;
+  const y = v => H - 6 - ((v - min) / span) * (H - 12);
+  const x = i => (i / (series.length - 1)) * W;
+
+  const base = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  base.setAttribute("class", "base");
+  base.setAttribute("points", `0,${y(prevClose)} ${W},${y(prevClose)}`);
+  base.setAttribute("vector-effect", "non-scaling-stroke");
+  svg.appendChild(base);
+
+  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  line.setAttribute("points", series.map((v, i) => `${x(i)},${y(v)}`).join(" "));
+  line.setAttribute("stroke", up ? "var(--up)" : "var(--down)");
+  line.setAttribute("vector-effect", "non-scaling-stroke");
+  svg.appendChild(line);
+  return line;
+}
+
+const coGrid = document.getElementById("co-grid");
+const coModal = document.getElementById("co-modal");
+(DATA.companies || []).forEach(c => {
+  const up = c.changePct >= 0;
+  const card = document.createElement("button");
+  card.className = "co";
+  card.type = "button";
+  card.innerHTML = `
+    <div class="co-top"><span class="tick"></span><span class="badge"></span></div>
+    <div class="co-name"></div>
+    <svg class="spark" preserveAspectRatio="none"></svg>
+    <div class="co-nums"><span class="price"></span><span class="delta ${up ? "up" : "down"}"></span></div>`;
+  card.querySelector(".tick").textContent = c.symbol;
+  card.querySelector(".badge").textContent = c.badge;
+  card.querySelector(".co-name").textContent = c.name;
+  card.querySelector(".price").textContent = "$" + c.price.toLocaleString("en-US");
+  card.querySelector(".delta").textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "%";
+  drawSpark(card.querySelector(".spark"), c.spark, c.prevClose, up);
+  card.addEventListener("click", () => openCompany(c));
+  coGrid.appendChild(card);
+});
+
+function openCompany(c) {
+  const up = c.changePct >= 0;
+  document.getElementById("co-badge").textContent = c.badge;
+  document.getElementById("co-tick").textContent = c.symbol + " · " + c.name;
+  document.getElementById("co-about").textContent = c.about || "";
+  document.getElementById("co-price").textContent = "$" + c.price.toLocaleString("en-US");
+  const delta = document.getElementById("co-delta");
+  delta.textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "% today";
+  delta.className = "delta " + (up ? "up" : "down");
+  document.getElementById("co-prev").textContent = "$" + c.prevClose.toLocaleString("en-US");
+  document.getElementById("co-low").textContent = "$" + c.dayLow.toLocaleString("en-US");
+  document.getElementById("co-high").textContent = "$" + c.dayHigh.toLocaleString("en-US");
+  drawSpark(document.getElementById("co-spark"), c.spark, c.prevClose, up);
+  document.getElementById("co-summary").textContent =
+    c.newsSummary || "No summary available this refresh — the headlines below tell the story.";
+
+  const list = document.getElementById("co-news");
+  list.innerHTML = "";
+  c.news.forEach(n => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = n.link; a.target = "_blank"; a.rel = "noopener";
+    const t = document.createElement("div");
+    t.className = "t"; t.textContent = n.title;
+    a.appendChild(t);
+    const time = document.createElement("time");
+    time.textContent = timeAgo(n.published);
+    a.appendChild(time);
+    li.appendChild(a); list.appendChild(li);
+  });
+  document.getElementById("co-link").href = "https://finance.yahoo.com/quote/" + encodeURIComponent(c.symbol);
+  coModal.showModal();
+}
+document.getElementById("co-close").addEventListener("click", () => coModal.close());
+coModal.addEventListener("click", e => { if (e.target === coModal) coModal.close(); });
+
+// ---------- saved reading list ----------
+const SAVED_KEY = "newsdesk-saved";
+const loadSaved = () => { try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || []; } catch { return []; } };
+function storeSaved(list) { localStorage.setItem(SAVED_KEY, JSON.stringify(list.slice(0, 100))); refreshSavedChip(); }
+function saveStory(a) {
+  const list = loadSaved();
+  if (!list.some(x => x.link === a.link)) {
+    list.unshift({ title: a.title, link: a.link, emoji: a.emoji || "", section: a.section || "" });
+    storeSaved(list);
+  }
+}
+function refreshSavedChip() {
+  const list = loadSaved();
+  const chip = document.getElementById("saved-chip");
+  chip.hidden = list.length === 0;
+  document.getElementById("saved-count").textContent = list.length;
+  const ul = document.getElementById("saved-modal-list");
+  ul.innerHTML = "";
+  list.forEach(s => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = s.link; a.target = "_blank"; a.rel = "noopener";
+    a.textContent = (s.emoji ? s.emoji + "  " : "") + s.title;
+    li.appendChild(a); ul.appendChild(li);
+  });
+}
+const savedModal = document.getElementById("saved-modal");
+document.getElementById("saved-chip").addEventListener("click", () => savedModal.showModal());
+document.getElementById("saved-close").addEventListener("click", () => savedModal.close());
+savedModal.addEventListener("click", e => { if (e.target === savedModal) savedModal.close(); });
+document.getElementById("saved-clear").addEventListener("click", () => { storeSaved([]); savedModal.close(); });
+refreshSavedChip();
+
+// ---------- swipe deck ----------
+const deck = document.getElementById("deck");
+const stage = document.getElementById("deck-stage");
+const glowL = document.getElementById("glow-left");
+const glowR = document.getElementById("glow-right");
+let deckList = [], deckIdx = 0, deckColor = false, deckPeek = false;
+
+const QUESTIONS = [
+  { q: "Would you rather know the hard truth or stay comfortably happy?", left: "Happy", right: "Truth", lt: "happiness", rt: "truth" },
+  { q: "Does luck or effort shape a life more?", left: "Luck", right: "Effort", lt: "luck", rt: "effort" },
+  { q: "Is money a tool or a trap?", left: "Trap", right: "Tool", lt: "money", rt: "money" },
+  { q: "If nobody remembers it, did it matter?", left: "No", right: "Yes", lt: "ordinary-life", rt: "legacy" },
+  { q: "Are people fundamentally good?", left: "No", right: "Yes", lt: "cruelty", rt: "kindness" },
+  { q: "Should you change the world or learn to accept it?", left: "Accept it", right: "Change it", lt: "acceptance", rt: "change" },
+  { q: "Is fear a compass or a wall?", left: "A wall", right: "A compass", lt: "fear", rt: "courage" },
+  { q: "Free will — real, or a story we tell ourselves?", left: "A story", right: "Real", lt: "luck", rt: "effort" },
+  { q: "Is it better to be respected or to be liked?", left: "Liked", right: "Respected", lt: "kindness", rt: "power" },
+  { q: "Do the news shape the world, or just describe it?", left: "Describe it", right: "Shape it", lt: "truth", rt: "power" },
+  { q: "Would you trade ten ordinary years for one extraordinary one?", left: "Never", right: "Instantly", lt: "ordinary-life", rt: "ambition" },
+  { q: "Is comfort the reward for a good life, or the enemy of one?", left: "The reward", right: "The enemy", lt: "happiness", rt: "ambition" },
+  { q: "Do you trust your head or your gut?", left: "My gut", right: "My head", lt: "courage", rt: "truth" },
+  { q: "Is your future something you find or something you build?", left: "Find it", right: "Build it", lt: "luck", rt: "effort" },
+  { q: "When life gets heavy — push through, or step back?", left: "Step back", right: "Push through", lt: "acceptance", rt: "effort" },
+  { q: "Old friends or new places?", left: "Old friends", right: "New places", lt: "kindness", rt: "change" },
+  { q: "How does Latvia feel to you these days?", choices: [
+      { label: "Home, truly", theme: "acceptance" },
+      { label: "Full of promise", theme: "ambition" },
+      { label: "Stuck in place", theme: "change" },
+      { label: "Just a place I live", theme: "ordinary-life" },
+  ]},
+  { q: "What does a country owe its people?", choices: [
+      { label: "Safety above all", theme: "fear" },
+      { label: "Opportunity", theme: "ambition" },
+      { label: "The truth", theme: "truth" },
+      { label: "Nothing — we owe it", theme: "legacy" },
+  ]},
+];
+
+// ---------- the model: learned taste profile ----------
+const PROFILE_KEY = "newsdesk-profile";
+const loadProfile = () => {
+  try { return JSON.parse(localStorage.getItem(PROFILE_KEY)) || { themes: {}, probes: { total: 0, correct: 0 }, swipes: 0 }; }
+  catch { return { themes: {}, probes: { total: 0, correct: 0 }, swipes: 0 }; }
+};
+const storeProfile = p => localStorage.setItem(PROFILE_KEY, JSON.stringify(p));
+function bumpTheme(profile, theme, dir) {
+  if (!theme) return;
+  const t = profile.themes[theme] || { up: 0, down: 0 };
+  if (dir > 0) t.up += 1; else t.down += 1;
+  profile.themes[theme] = t;
+}
+function learnSwipe(story, dir) {
+  const p = loadProfile();
+  p.swipes += 1;
+  (story.themes || []).forEach(t => bumpTheme(p, t, dir));
+  if (story.isProbe) {
+    p.probes.total += 1;
+    if (dir < 0) p.probes.correct += 1;
+  }
+  storeProfile(p);
+  refreshPhilChip();
+}
+function themeScore(p, theme) {
+  const t = p.themes[theme] || { up: 0, down: 0 };
+  return (t.up - t.down) / (t.up + t.down + 2);
+}
+function scoreStory(p, a) {
+  const th = a.themes || [];
+  if (!th.length) return 0;
+  return th.reduce((s, t) => s + themeScore(p, t), 0) / th.length;
+}
+
+// answers tally, persisted
+const ANSWERS_KEY = "newsdesk-answers";
+const loadAnswers = () => { try { return JSON.parse(localStorage.getItem(ANSWERS_KEY)) || {}; } catch { return {}; } };
+function recordAnswer(question, label, theme) {
+  const all = loadAnswers();
+  const options = question.choices ? question.choices.map(c => c.label) : [question.left, question.right];
+  const entry = all[question.q] || { options, counts: {} };
+  entry.options = entry.options || options;
+  entry.counts[label] = (entry.counts[label] || 0) + 1;
+  entry.last = label;
+  all[question.q] = entry;
+  localStorage.setItem(ANSWERS_KEY, JSON.stringify(all));
+  const p = loadProfile();
+  bumpTheme(p, theme, 1);
+  storeProfile(p);
+  refreshPhilChip();
+}
+function refreshPhilChip() {
+  const all = loadAnswers();
+  const total = Object.values(all).reduce((s, e) => s + Object.values(e.counts).reduce((a, b) => a + b, 0), 0);
+  const chip = document.getElementById("phil-chip");
+  chip.hidden = total === 0;
+  document.getElementById("phil-count").textContent = total;
+  const ul = document.getElementById("phil-list");
+  ul.innerHTML = "";
+  Object.entries(all).forEach(([q, e]) => {
+    const li = document.createElement("li");
+    li.className = "phil-row";
+    const qEl = document.createElement("div");
+    qEl.className = "phil-q";
+    qEl.textContent = q;
+    const tally = document.createElement("div");
+    tally.className = "phil-tally";
+    const options = e.options || [e.left, e.right];
+    const max = Math.max(...options.map(o => e.counts[o] || 0));
+    options.forEach((label, i) => {
+      const n = e.counts[label] || 0;
+      const s = document.createElement("span");
+      s.textContent = label + " ×" + n;
+      if (n === max && n > 0 && options.filter(o => (e.counts[o] || 0) === max).length === 1) s.className = "lead";
+      tally.appendChild(s);
+      if (i < options.length - 1) tally.appendChild(document.createTextNode(" · "));
+    });
+    li.appendChild(qEl); li.appendChild(tally);
+    ul.appendChild(li);
+  });
+
+  // model report
+  const p = loadProfile();
+  const status = document.getElementById("model-status");
+  const themesEl = document.getElementById("model-themes");
+  if (p.swipes + total === 0) {
+    status.textContent = "No data yet — swipe some cards.";
+    themesEl.textContent = "";
+    return;
+  }
+  let readiness;
+  if (p.swipes < 8) readiness = "still warming up";
+  else if (p.probes.total >= 4 && p.probes.correct / p.probes.total >= 0.7) readiness = "getting to know you";
+  else if (p.probes.total >= 4) readiness = "not fully ready — keep swiping";
+  else readiness = "learning your patterns";
+  status.textContent = p.swipes + " swipes learned · "
+    + (p.probes.total ? "predictions right " + p.probes.correct + " of " + p.probes.total + " · " : "")
+    + readiness;
+  const scored = Object.keys(p.themes)
+    .filter(t => (p.themes[t].up + p.themes[t].down) >= 2)
+    .map(t => [t, themeScore(p, t)])
+    .sort((a, b) => b[1] - a[1]);
+  const likes = scored.filter(x => x[1] > 0).slice(0, 3).map(x => x[0]);
+  const dislikes = scored.filter(x => x[1] < 0).slice(-3).map(x => x[0]);
+  themesEl.textContent =
+    (likes.length ? "Drawn to: " + likes.join(", ") : "")
+    + (likes.length && dislikes.length ? " · " : "")
+    + (dislikes.length ? "Avoids: " + dislikes.join(", ") : "");
+}
+const philModal = document.getElementById("phil-modal");
+document.getElementById("phil-chip").addEventListener("click", () => philModal.showModal());
+document.getElementById("phil-close").addEventListener("click", () => philModal.close());
+philModal.addEventListener("click", e => { if (e.target === philModal) philModal.close(); });
+document.getElementById("phil-clear").addEventListener("click", () => {
+  localStorage.removeItem(ANSWERS_KEY); localStorage.removeItem(PROFILE_KEY);
+  refreshPhilChip(); philModal.close();
+});
+refreshPhilChip();
+
+function interleaveQuestions(list) {
+  // a question answered once is answered forever — only deal from the unanswered pool
+  const answered = new Set(Object.keys(loadAnswers()));
+  const pool = QUESTIONS.filter(q => !answered.has(q.q));
+  if (!pool.length) return list.slice();
+  const start = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000) % pool.length;
+  const out = [];
+  let qn = 0;
+  const nextQ = () => qn < pool.length
+    ? { ...pool[(start + qn++) % pool.length], isQuestion: true }
+    : null;
+  const push = q => { if (q) out.push(q); };
+  push(nextQ());
+  list.forEach((a, i) => {
+    out.push(a);
+    if ((i + 1) % 4 === 0 && i !== list.length - 1) push(nextQ());
+  });
+  return out;
+}
+
+function answerMulti(question, choice) {
+  recordAnswer(question, choice.label, choice.theme);
+  const card = stage.querySelector('.dcard[data-pos="0"]');
+  if (card) {
+    card.style.transition = "transform 0.35s ease, opacity 0.35s ease";
+    card.style.transform = "translateY(-70vh) rotate(-4deg)";
+    card.style.opacity = "0";
+  }
+  setTimeout(() => { deckIdx += 1; renderStack(); }, 280);
+}
+
+function makeDCard(a) {
+  const card = document.createElement("div");
+  if (a.isQuestion) {
+    card.className = "dcard dcard-q";
+    const inner = document.createElement("div");
+    inner.className = "dcard-inner";
+    const front = document.createElement("div");
+    front.className = "fc-front dcard-front";
+    if (!a.choices) {
+      const stampSave = document.createElement("span");
+      stampSave.className = "stamp stamp-save"; stampSave.textContent = a.right.toUpperCase();
+      const stampSkip = document.createElement("span");
+      stampSkip.className = "stamp stamp-skip"; stampSkip.textContent = a.left.toUpperCase();
+      front.appendChild(stampSave); front.appendChild(stampSkip);
+    }
+    const k = document.createElement("span"); k.className = "kicker";
+    k.textContent = a.choices ? "A more personal one" : "Before you continue";
+    front.appendChild(k);
+    const mark = document.createElement("span"); mark.className = "q-mark"; mark.textContent = "✦";
+    front.appendChild(mark);
+    const h = document.createElement("h3"); h.textContent = a.q; front.appendChild(h);
+    if (a.choices) {
+      const box = document.createElement("div");
+      box.className = "q-choices";
+      a.choices.forEach(c => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "q-choice";
+        b.textContent = c.label;
+        b.addEventListener("pointerdown", e => e.stopPropagation());
+        b.addEventListener("click", e => { e.stopPropagation(); answerMulti(a, c); });
+        box.appendChild(b);
+      });
+      front.appendChild(box);
+      const hint = document.createElement("span");
+      hint.className = "dcard-hint";
+      hint.textContent = "pick one — or swipe to stay quiet";
+      front.appendChild(hint);
+    } else {
+      const answers = document.createElement("div");
+      answers.className = "q-answers";
+      const al = document.createElement("span"); al.textContent = "👈 " + a.left;
+      const ar = document.createElement("span"); ar.textContent = a.right + " 👉";
+      answers.appendChild(al); answers.appendChild(ar);
+      front.appendChild(answers);
+    }
+    const back = document.createElement("div");
+    back.className = "dcard-back";
+    const p = document.createElement("p");
+    p.textContent = "No right answer here. Answer the way you lean — then carry it into the headlines.";
+    back.appendChild(p);
+    inner.appendChild(front); inner.appendChild(back);
+    card.appendChild(inner);
+    return card;
+  }
+
+  card.className = "dcard" + (deckColor ? toneClass(a) : "");
+  const inner = document.createElement("div");
+  inner.className = "dcard-inner";
+
+  const front = document.createElement("div");
+  front.className = "fc-front dcard-front";
+  const stampSave = document.createElement("span");
+  stampSave.className = "stamp stamp-save"; stampSave.textContent = "SAVE";
+  const stampSkip = document.createElement("span");
+  stampSkip.className = "stamp stamp-skip"; stampSkip.textContent = "SKIP";
+  front.appendChild(stampSave); front.appendChild(stampSkip);
+  if (a.matched) {
+    const m = document.createElement("span");
+    m.className = "match-note";
+    m.textContent = "✦ because you chose " + a.matched;
+    front.appendChild(m);
+  }
+  const k = document.createElement("span"); k.className = "kicker"; k.textContent = a.section || "";
+  front.appendChild(k);
+  if (a.emoji) { const e = document.createElement("span"); e.className = "fc-emoji"; e.textContent = a.emoji; front.appendChild(e); }
+  const h = document.createElement("h3"); h.textContent = a.title; front.appendChild(h);
+  const t = document.createElement("time"); t.textContent = timeAgo(a.published); front.appendChild(t);
+  const hint = document.createElement("span"); hint.className = "dcard-hint"; hint.textContent = "tap to flip ↻";
+  front.appendChild(hint);
+
+  const back = document.createElement("div");
+  back.className = "dcard-back";
+  const k2 = document.createElement("span"); k2.className = "kicker"; k2.textContent = a.section || "";
+  back.appendChild(k2);
+  const p = document.createElement("p");
+  p.textContent = a.description || "No summary provided — open the full article.";
+  back.appendChild(p);
+  const link = document.createElement("a");
+  link.className = "btn"; link.href = a.link; link.target = "_blank"; link.rel = "noopener";
+  link.textContent = "Read full story ↗";
+  link.addEventListener("click", e => e.stopPropagation());
+  link.addEventListener("pointerdown", e => e.stopPropagation());
+  back.appendChild(link);
+
+  inner.appendChild(front); inner.appendChild(back);
+  card.appendChild(inner);
+  return card;
+}
+
+function renderStack() {
+  stage.innerHTML = "";
+  const left = deckList.length - deckIdx;
+  document.getElementById("deck-count").textContent =
+    left > 0 ? (deckIdx + 1) + " / " + deckList.length : "done";
+  if (left <= 0) { if (deckPeek) closeDeck(); else showDeckDone(); return; }
+  for (let p = Math.min(2, left - 1); p >= 0; p--) {
+    const card = makeDCard(deckList[deckIdx + p]);
+    card.dataset.pos = p;
+    stage.appendChild(card);
+  }
+  deck.classList.toggle("q-mode", !!deckList[deckIdx].isQuestion);
+  attachDrag(stage.querySelector('.dcard[data-pos="0"]'));
+}
+
+function showDeckDone() {
+  const saved = loadSaved();
+  const done = document.createElement("div");
+  done.className = "deck-done";
+  done.innerHTML = "<h3>That's the whole deck 🎉</h3>";
+  const p = document.createElement("p");
+  p.textContent = deckList.filter(a => !a.isQuestion).length + " stories seen · "
+    + saved.length + " in your reading list";
+  done.appendChild(p);
+  if (saved.length) {
+    const ul = document.createElement("ul");
+    ul.className = "saved-list";
+    saved.slice(0, 8).forEach(s => {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = s.link; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = (s.emoji ? s.emoji + "  " : "") + s.title;
+      li.appendChild(a); ul.appendChild(li);
+    });
+    done.appendChild(ul);
+  }
+  const btn = document.createElement("button");
+  btn.className = "btn"; btn.type = "button"; btn.textContent = "Back to the page";
+  btn.addEventListener("click", closeDeck);
+  done.appendChild(btn);
+  stage.appendChild(done);
+}
+
+function attachDrag(card) {
+  if (!card) return;
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false, moved = false;
+  const save = card.querySelector(".stamp-save"), skip = card.querySelector(".stamp-skip");
+  card.addEventListener("pointerdown", e => {
+    dragging = true; moved = false; startX = e.clientX; startY = e.clientY;
+    card.classList.add("dragging");
+    card.setPointerCapture(e.pointerId);
+  });
+  card.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    dx = e.clientX - startX; dy = e.clientY - startY;
+    if (Math.abs(dx) + Math.abs(dy) > 6) moved = true;
+    card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx * 0.06}deg)`;
+    save.style.opacity = Math.min(1, Math.max(0, dx / 90));
+    skip.style.opacity = Math.min(1, Math.max(0, -dx / 90));
+    glowR.style.opacity = Math.min(1, Math.max(0, dx / 130));
+    glowL.style.opacity = Math.min(1, Math.max(0, -dx / 130));
+  });
+  card.addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    card.classList.remove("dragging");
+    glowL.style.opacity = 0; glowR.style.opacity = 0;
+    if (dx > 110) flyTop(1);
+    else if (dx < -110) flyTop(-1);
+    else {
+      card.style.transform = "";
+      save.style.opacity = 0; skip.style.opacity = 0;
+      if (!moved) card.classList.toggle("flipped");
+    }
+    dx = 0; dy = 0;
+  });
+}
+
+function flyTop(dir) {
+  const card = stage.querySelector('.dcard[data-pos="0"]');
+  if (!card) return;
+  const top = deckList[deckIdx];
+  if (top.isQuestion && top.choices) {
+    // multi-choice question swiped away unanswered — no learning
+  } else if (top.isQuestion) {
+    const label = dir > 0 ? top.right : top.left;
+    const theme = dir > 0 ? top.rt : top.lt;
+    recordAnswer(top, label, theme);
+    // steer the deck: pull the first later story matching the chosen theme up next
+    for (let j = deckIdx + 2; j < deckList.length; j++) {
+      const cand = deckList[j];
+      if (!cand.isQuestion && (cand.themes || []).includes(theme)) {
+        deckList.splice(j, 1);
+        deckList.splice(deckIdx + 1, 0, cand);
+        cand.matched = label;
+        break;
+      }
+    }
+    const nxt = deckList[deckIdx + 1];
+    if (nxt && !nxt.isQuestion && (nxt.themes || []).includes(theme)) nxt.matched = label;
+  } else {
+    learnSwipe(top, dir);
+    if (top.isProbe) {
+      deckToast(dir < 0 ? "✦ predicted — the model knows you a little better"
+                        : "✦ surprise! recalibrating what it thinks of you");
+    }
+    if (dir > 0) saveStory(top);
+  }
+  card.style.transition = "transform 0.35s ease, opacity 0.35s ease";
+  card.style.transform = `translate(${dir * (window.innerWidth * 0.8)}px, -40px) rotate(${dir * 22}deg)`;
+  card.style.opacity = "0";
+  setTimeout(() => { deckIdx += 1; renderStack(); }, 280);
+}
+
+let toastTimer = null;
+function deckToast(msg) {
+  const t = document.getElementById("deck-toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function personalizeDeck(list) {
+  const p = loadProfile();
+  const stories = list.map(a => ({ ...a, matched: undefined, isProbe: false }));
+  if (p.swipes < 4) return stories;
+  stories.sort((a, b) => scoreStory(p, b) - scoreStory(p, a));
+  if (p.swipes >= 8 && stories.length > 4) {
+    const worst = stories[stories.length - 1];
+    if (scoreStory(p, worst) < -0.1) {
+      stories.splice(stories.length - 1, 1);
+      worst.isProbe = true;
+      stories.splice(2, 0, worst);
+    }
+  }
+  return stories;
+}
+
+function openDeck(list, title, colorByTone) {
+  deckPeek = false;
+  deckList = interleaveQuestions(personalizeDeck(list)); deckIdx = 0; deckColor = !!colorByTone;
+  document.getElementById("deck-title").textContent = title;
+  deck.classList.add("open");
+  document.body.style.overflow = "hidden";
+  renderStack();
+}
+function closeDeck() {
+  deck.classList.remove("open");
+  document.body.style.overflow = "";
+}
+document.getElementById("deck-close").addEventListener("click", closeDeck);
+document.getElementById("deck-skip").addEventListener("click", () => flyTop(-1));
+document.getElementById("deck-save").addEventListener("click", () => flyTop(1));
+document.getElementById("deck-flip").addEventListener("click", () => {
+  const card = stage.querySelector('.dcard[data-pos="0"]');
+  if (card) card.classList.toggle("flipped");
+});
+document.addEventListener("keydown", e => {
+  if (!deck.classList.contains("open")) return;
+  if (e.key === "Escape") closeDeck();
+  else if (e.key === "ArrowLeft") flyTop(-1);
+  else if (e.key === "ArrowRight") flyTop(1);
+  else if (e.key === " " || e.key === "Enter") {
+    e.preventDefault();
+    const card = stage.querySelector('.dcard[data-pos="0"]');
+    if (card) card.classList.toggle("flipped");
+  }
+});
+document.getElementById("swipe-world").addEventListener("click", () =>
+  openDeck(DATA.articles, "World news deck", false));
+document.getElementById("swipe-fin").addEventListener("click", () =>
+  openDeck((DATA.market && DATA.market.news) || [], "Financial news deck", true));
+
+// ---------- market recap show ----------
+const SLIDE_MS = 9000;
+const show = document.getElementById("show");
+const showCard = document.getElementById("show-card");
+let showIdx = 0, showTimer = null, showDeadline = 0, showRemaining = 0, showPaused = false;
+show.style.setProperty("--slide-ms", SLIDE_MS + "ms");
+
+function showCompanies() { return DATA.companies || []; }
+
+function buildShowProgress() {
+  const bar = document.getElementById("show-progress");
+  bar.innerHTML = "";
+  showCompanies().forEach((_, i) => {
+    const seg = document.createElement("span");
+    seg.className = "seg" + (i < showIdx ? " done" : i === showIdx ? " active" : "");
+    seg.appendChild(document.createElement("i"));
+    bar.appendChild(seg);
+  });
+}
+
+function renderShowSlide(c) {
+  showCard.innerHTML = "";
+  const up = c.changePct >= 0;
+
+  const kicker = document.createElement("span");
+  kicker.className = "kicker show-seq";
+  kicker.textContent = c.badge;
+  showCard.appendChild(kicker);
+
+  const head = document.createElement("div");
+  head.className = "show-head show-seq";
+  const left = document.createElement("div");
+  const h2 = document.createElement("h2");
+  h2.textContent = c.symbol;
+  left.appendChild(h2);
+  const nm = document.createElement("div");
+  nm.className = "show-about";
+  nm.textContent = c.name;
+  left.appendChild(nm);
+  head.appendChild(left);
+  const priceBox = document.createElement("div");
+  priceBox.className = "show-price";
+  const priceEl = document.createElement("div");
+  priceEl.className = "price";
+  priceEl.textContent = "$" + c.prevClose.toLocaleString("en-US");
+  const deltaEl = document.createElement("div");
+  deltaEl.className = "delta " + (up ? "up" : "down");
+  deltaEl.textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "% today";
+  deltaEl.style.opacity = "0";
+  priceBox.appendChild(priceEl); priceBox.appendChild(deltaEl);
+  head.appendChild(priceBox);
+  showCard.appendChild(head);
+
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "show-spark show-seq");
+  svg.setAttribute("preserveAspectRatio", "none");
+  showCard.appendChild(svg);
+  const line = drawSpark(svg, c.spark, c.prevClose, up);
+
+  const about = document.createElement("p");
+  about.className = "show-about show-seq";
+  about.textContent = c.about || "";
+  showCard.appendChild(about);
+
+  const sum = document.createElement("p");
+  sum.className = "show-sum show-seq";
+  sum.textContent = c.newsSummary || "No summary this refresh — open the company popup for headlines.";
+  showCard.appendChild(sum);
+
+  // sequence: card pieces fade in one after another
+  [kicker, head, svg, about, sum].forEach((el, i) => { el.style.animationDelay = (i * 0.55) + "s"; });
+
+  // slow self-drawing chart
+  if (line) {
+    const len = line.getTotalLength();
+    line.style.strokeDasharray = len;
+    line.style.strokeDashoffset = len;
+    line.style.transition = "stroke-dashoffset 2.6s ease 1.1s";
+    requestAnimationFrame(() => { line.style.strokeDashoffset = "0"; });
+  }
+
+  // price counts up from previous close while the chart draws
+  const t0 = performance.now();
+  (function tick(now) {
+    const p = Math.min(1, (now - t0 - 1100) / 2600);
+    if (p >= 0) {
+      const v = c.prevClose + (c.price - c.prevClose) * p;
+      priceEl.textContent = "$" + v.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    if (p < 1 && show.classList.contains("open")) requestAnimationFrame(tick);
+    else { deltaEl.style.transition = "opacity 0.4s"; deltaEl.style.opacity = "1"; }
+  })(t0);
+}
+
+function playShowSlide() {
+  const list = showCompanies();
+  if (showIdx >= list.length) { closeShow(); return; }
+  buildShowProgress();
+  renderShowSlide(list[showIdx]);
+  clearTimeout(showTimer);
+  showPaused = false;
+  show.classList.remove("paused");
+  document.getElementById("show-pause").textContent = "⏸";
+  showRemaining = SLIDE_MS;
+  showDeadline = Date.now() + SLIDE_MS;
+  showTimer = setTimeout(() => { showIdx += 1; playShowSlide(); }, SLIDE_MS);
+}
+
+function toggleShowPause() {
+  if (showPaused) {
+    showDeadline = Date.now() + showRemaining;
+    showTimer = setTimeout(() => { showIdx += 1; playShowSlide(); }, showRemaining);
+  } else {
+    clearTimeout(showTimer);
+    showRemaining = Math.max(0, showDeadline - Date.now());
+  }
+  showPaused = !showPaused;
+  show.classList.toggle("paused", showPaused);
+  document.getElementById("show-pause").textContent = showPaused ? "▶" : "⏸";
+}
+
+function openShow() {
+  if (!showCompanies().length) return;
+  showIdx = 0;
+  show.classList.add("open");
+  document.body.style.overflow = "hidden";
+  playShowSlide();
+}
+function closeShow() {
+  clearTimeout(showTimer);
+  show.classList.remove("open");
+  document.body.style.overflow = "";
+}
+document.getElementById("play-show").addEventListener("click", openShow);
+document.getElementById("show-close").addEventListener("click", closeShow);
+document.getElementById("show-pause").addEventListener("click", toggleShowPause);
+document.getElementById("show-next").addEventListener("click", () => { showIdx += 1; playShowSlide(); });
+document.getElementById("show-prev").addEventListener("click", () => { showIdx = Math.max(0, showIdx - 1); playShowSlide(); });
+document.addEventListener("keydown", e => {
+  if (!show.classList.contains("open")) return;
+  if (e.key === "Escape") closeShow();
+  else if (e.key === "ArrowRight") { showIdx += 1; playShowSlide(); }
+  else if (e.key === "ArrowLeft") { showIdx = Math.max(0, showIdx - 1); playShowSlide(); }
+  else if (e.key === " ") { e.preventDefault(); toggleShowPause(); }
+});
+
+// ---------- the wire ----------
+function peekStory(a) {
+  deckPeek = true;
+  deckList = [a]; deckIdx = 0;
+  deckColor = a.section === "Markets";
+  document.getElementById("deck-title").textContent = "Caught from the wire";
+  deck.classList.add("open");
+  document.body.style.overflow = "hidden";
+  renderStack();
+}
+{
+  const world = DATA.articles || [];
+  const fin = (DATA.market && DATA.market.news) || [];
+  const mixed = [];
+  const max = Math.max(world.length, fin.length);
+  for (let i = 0; i < max; i++) {
+    if (world[i]) mixed.push(world[i]);
+    if (fin[i]) mixed.push(fin[i]);
+  }
+  const track = document.getElementById("river-track");
+  const buildItem = a => {
+    const el = document.createElement("button");
+    el.type = "button";
+    el.className = "river-item" + toneClass(a);
+    const top = document.createElement("div");
+    top.className = "top";
+    const k = document.createElement("span");
+    k.className = "kicker";
+    k.textContent = a.section || "";
+    top.appendChild(k);
+    if (a.emoji) {
+      const e = document.createElement("span");
+      e.className = "fc-emoji";
+      e.textContent = a.emoji;
+      top.appendChild(e);
+    }
+    el.appendChild(top);
+    const h = document.createElement("h4");
+    h.textContent = a.title;
+    el.appendChild(h);
+    el.addEventListener("click", () => peekStory(a));
+    return el;
+  };
+  // content twice for a seamless loop
+  mixed.forEach(a => track.appendChild(buildItem(a)));
+  mixed.forEach(a => track.appendChild(buildItem(a)));
+  track.style.animationDuration = Math.max(40, mixed.length * 6) + "s";
+}
+
+// ---------- entrance stagger ----------
+document.querySelectorAll(".fc, .co").forEach((c, i) => {
+  c.style.animationDelay = Math.min(i * 40, 700) + "ms";
+});
+
+document.getElementById("built-at").textContent =
+  new Date(DATA.builtAt).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+
+// ---------- live self-refresh ----------
+// data rebuilds every 15 min; reload quietly once this copy is stale and you're idle
+let lastTouch = Date.now();
+["pointerdown", "keydown", "wheel", "touchstart"].forEach(ev =>
+  addEventListener(ev, () => { lastTouch = Date.now(); }, { passive: true }));
+setInterval(() => {
+  const busy = deck.classList.contains("open") || show.classList.contains("open")
+    || document.querySelector("dialog[open]");
+  const ageMin = (Date.now() - new Date(DATA.builtAt).getTime()) / 60000;
+  if (!busy && Date.now() - lastTouch > 120000 && ageMin > 17) location.reload();
+}, 60000);
+</script>
+</body>
+</html>
