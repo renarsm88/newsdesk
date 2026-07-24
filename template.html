@@ -73,7 +73,19 @@
   }
   h1 .dot { color: var(--accent); font-style: normal; }
   .dateline { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; }
-  .status-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .features-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .feature-btn {
+    display: inline-flex; align-items: center; gap: 8px; border: none; cursor: pointer;
+    padding: 13px 24px; border-radius: 12px; color: #fff;
+    font-family: inherit; font-weight: 800; font-size: 0.98rem; letter-spacing: 0.02em;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .feature-btn:hover { transform: translateY(-3px) scale(1.04); box-shadow: 0 12px 30px rgba(0,0,0,0.35); filter: brightness(1.08); }
+  .fb-world { background: linear-gradient(135deg, #b3261e, #e5544b); }
+  .fb-recap { background: linear-gradient(135deg, #5c37c4, #9f86ff); }
+  .fb-fin { background: linear-gradient(135deg, #14652f, #2aa457); }
+  .status-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
   .chip {
     display: inline-flex; align-items: center; gap: 8px;
     background: var(--chip); border: 1px solid var(--line);
@@ -535,11 +547,12 @@
       <h1 id="masthead"></h1>
       <div class="dateline" id="dateline"></div>
     </div>
+    <div class="features-row">
+      <button type="button" class="feature-btn fb-world" id="top-swipe-world">🔥 Swipe the world</button>
+      <button type="button" class="feature-btn fb-recap" id="top-recap">▶ Play market recap</button>
+      <button type="button" class="feature-btn fb-fin" id="top-swipe-fin">📉 Swipe the markets</button>
+    </div>
     <div class="status-row">
-      <span class="chip" id="weather-chip" title="Live weather in Rīga">
-        <span id="weather-icon">⏳</span>
-        <span><b id="weather-temp">–</b> <span class="sub" id="weather-desc">loading weather…</span></span>
-      </span>
       <button type="button" class="chip" id="market-chip" title="Today's markets — click for stories" hidden>
         <span id="market-icon">📈</span>
         <span><b id="market-main">–</b> <span class="sub">Markets · click for stories</span></span>
@@ -586,7 +599,7 @@
   <footer>
     World news from <a href="https://www.bbc.com/news/world" target="_blank" rel="noopener">BBC News</a> ·
     markets &amp; companies from MarketWatch and Yahoo Finance, summaries by Claude ·
-    company data is information, not investment advice · weather by Open-Meteo ·
+    company data is information, not investment advice ·
     refreshes itself every 15 minutes · this copy built <span id="built-at"></span>
   </footer>
 </div>
@@ -720,17 +733,6 @@
 <script>
 const DATA = /*__DATA__*/null;
 
-const WMO = {
-  0:["☀️","Clear"],1:["🌤️","Mostly clear"],2:["⛅","Partly cloudy"],3:["☁️","Overcast"],
-  45:["🌫️","Fog"],48:["🌫️","Icy fog"],51:["🌦️","Light drizzle"],53:["🌦️","Drizzle"],
-  55:["🌧️","Heavy drizzle"],56:["🌧️","Freezing drizzle"],57:["🌧️","Freezing drizzle"],
-  61:["🌧️","Light rain"],63:["🌧️","Rain"],65:["🌧️","Heavy rain"],66:["🌧️","Freezing rain"],
-  67:["🌧️","Freezing rain"],71:["🌨️","Light snow"],73:["🌨️","Snow"],75:["❄️","Heavy snow"],
-  77:["❄️","Snow grains"],80:["🌦️","Light showers"],81:["🌧️","Showers"],82:["⛈️","Heavy showers"],
-  85:["🌨️","Snow showers"],86:["🌨️","Snow showers"],95:["⛈️","Thunderstorm"],
-  96:["⛈️","Thunderstorm"],99:["⛈️","Thunderstorm"]
-};
-
 function timeAgo(iso) {
   if (!iso) return "";
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -828,22 +830,6 @@ const MASTHEADS = [
 // ---------- dateline ----------
 document.getElementById("dateline").textContent =
   new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-// ---------- weather (live) ----------
-fetch("https://api.open-meteo.com/v1/forecast?latitude=56.9496&longitude=24.1052&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m")
-  .then(r => r.json())
-  .then(d => {
-    const c = d.current;
-    const [icon, desc] = WMO[c.weather_code] || ["🌡️", ""];
-    document.getElementById("weather-icon").textContent = icon;
-    document.getElementById("weather-temp").textContent = Math.round(c.temperature_2m) + "°C";
-    document.getElementById("weather-desc").textContent =
-      "Rīga · " + desc + " · feels " + Math.round(c.apparent_temperature) + "°";
-  })
-  .catch(() => {
-    document.getElementById("weather-icon").textContent = "🌐";
-    document.getElementById("weather-desc").textContent = "weather unavailable (offline?)";
-  });
 
 // ---------- markets chip + popup ----------
 const mkt = DATA.market || { indices: [], news: [] };
@@ -1742,10 +1728,13 @@ document.addEventListener("keydown", e => {
     if (card) card.classList.toggle("flipped");
   }
 });
-document.getElementById("swipe-world").addEventListener("click", () =>
-  openDeck(DATA.articles, "World news deck", false));
-document.getElementById("swipe-fin").addEventListener("click", () =>
-  openDeck((DATA.market && DATA.market.news) || [], "Financial news deck", true));
+const launchWorldDeck = () => openDeck(DATA.articles, "World news deck", false);
+const launchFinDeck = () => openDeck((DATA.market && DATA.market.news) || [], "Financial news deck", true);
+document.getElementById("swipe-world").addEventListener("click", launchWorldDeck);
+document.getElementById("swipe-fin").addEventListener("click", launchFinDeck);
+document.getElementById("top-swipe-world").addEventListener("click", launchWorldDeck);
+document.getElementById("top-swipe-fin").addEventListener("click", launchFinDeck);
+document.getElementById("top-recap").addEventListener("click", () => openShow());
 
 // ---------- market recap show ----------
 const SLIDE_MS = 9000;
