@@ -132,9 +132,22 @@
   .co-nums { display: flex; justify-content: space-between; align-items: baseline; }
   .co .price { font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
   .delta { font-weight: 700; font-variant-numeric: tabular-nums; }
-  .spark { width: 100%; height: 40px; }
+  .spark { width: 100%; height: 44px; overflow: visible; transition: transform 0.3s ease; transform-origin: 50% 100%; }
+  .co { perspective: 520px; }
+  .co:hover .spark, .co:focus-visible .spark { transform: rotateX(38deg) scaleY(1.22) translateY(-3px); }
   .spark polyline, .bigspark polyline { fill: none; stroke-width: 2; }
   .spark .base, .bigspark .base { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+  .spark-pulse {
+    stroke: rgba(255,255,255,0.5); stroke-width: 2; fill: none;
+    animation: sparkflow 3.4s linear infinite;
+  }
+  @keyframes sparkflow { from { stroke-dashoffset: var(--sp-a); } to { stroke-dashoffset: var(--sp-b); } }
+  .spark-dot { transform-box: fill-box; transform-origin: center; animation: dotpulse 2.1s ease-in-out infinite; }
+  @keyframes dotpulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(1.8); } }
+  @media (prefers-reduced-motion: reduce) {
+    .spark-pulse, .spark-dot { animation: none; }
+    .co:hover .spark { transform: none; }
+  }
   .bigspark { width: 100%; height: 110px; margin: 14px 0 4px; }
   .bigspark polyline { stroke-width: 2.5; }
   .co-about { color: var(--muted); font-size: 0.92rem; font-style: italic; margin-top: 4px; }
@@ -978,7 +991,9 @@ renderStories(DATA.articles, document.getElementById("grid"), false);
 renderStories((DATA.market && DATA.market.news) || [], document.getElementById("fin-grid"), true);
 
 // ---------- companies ----------
+let sparkUid = 0;
 function drawSpark(svg, series, prevClose, up) {
+  const NS = "http://www.w3.org/2000/svg";
   const W = 100, H = 100;
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.innerHTML = "";
@@ -988,18 +1003,59 @@ function drawSpark(svg, series, prevClose, up) {
   const span = (max - min) || 1;
   const y = v => H - 6 - ((v - min) / span) * (H - 12);
   const x = i => (i / (series.length - 1)) * W;
+  const hex = up ? "#3fbf6f" : "#e5544b";
+  const uid = "sg" + (++sparkUid);
+  const pts = series.map((v, i) => `${x(i)},${y(v)}`).join(" ");
 
-  const base = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+  // gradient pool under the line
+  const defs = document.createElementNS(NS, "defs");
+  defs.innerHTML = `<linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="${hex}" stop-opacity="0.30"/>
+    <stop offset="1" stop-color="${hex}" stop-opacity="0"/></linearGradient>`;
+  svg.appendChild(defs);
+  const area = document.createElementNS(NS, "polygon");
+  area.setAttribute("points", `0,${H} ${pts} ${W},${H}`);
+  area.setAttribute("fill", `url(#${uid})`);
+  svg.appendChild(area);
+
+  const base = document.createElementNS(NS, "polyline");
   base.setAttribute("class", "base");
   base.setAttribute("points", `0,${y(prevClose)} ${W},${y(prevClose)}`);
   base.setAttribute("vector-effect", "non-scaling-stroke");
   svg.appendChild(base);
 
-  const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  line.setAttribute("points", series.map((v, i) => `${x(i)},${y(v)}`).join(" "));
+  // glowing main line that draws itself in
+  const line = document.createElementNS(NS, "polyline");
+  line.setAttribute("points", pts);
   line.setAttribute("stroke", up ? "var(--up)" : "var(--down)");
   line.setAttribute("vector-effect", "non-scaling-stroke");
+  line.style.filter = `drop-shadow(0 0 3.5px ${hex}66)`;
   svg.appendChild(line);
+  const L = line.getTotalLength();
+  line.style.strokeDasharray = L;
+  line.style.strokeDashoffset = L;
+  line.style.transition = "stroke-dashoffset 1.1s ease 0.2s";
+  requestAnimationFrame(() => { line.style.strokeDashoffset = "0"; });
+  setTimeout(() => { line.style.strokeDasharray = "none"; }, 1600);
+
+  // a pulse of light forever travelling the line
+  const pulse = document.createElementNS(NS, "polyline");
+  pulse.setAttribute("class", "spark-pulse");
+  pulse.setAttribute("points", pts);
+  pulse.setAttribute("vector-effect", "non-scaling-stroke");
+  pulse.style.strokeDasharray = `${L * 0.14} ${L}`;
+  pulse.style.setProperty("--sp-a", L * 1.14);
+  pulse.style.setProperty("--sp-b", -L * 0.14);
+  svg.appendChild(pulse);
+
+  // breathing dot at the latest price
+  const dot = document.createElementNS(NS, "circle");
+  dot.setAttribute("class", "spark-dot");
+  dot.setAttribute("cx", x(series.length - 1));
+  dot.setAttribute("cy", y(series[series.length - 1]));
+  dot.setAttribute("r", 2.4);
+  dot.setAttribute("fill", up ? "var(--up)" : "var(--down)");
+  svg.appendChild(dot);
   return line;
 }
 
