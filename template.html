@@ -565,6 +565,10 @@
         <span>✦</span>
         <span><b id="phil-count">0</b> <span class="sub">answered</span></span>
       </button>
+      <button type="button" class="chip" id="score-chip" title="Recap game — click to play" hidden>
+        <span>🏆</span>
+        <span><b id="score-total">0 pts</b> <span class="sub" id="score-week"></span></span>
+      </button>
     </div>
   </header>
 
@@ -651,6 +655,7 @@
 <div id="show">
   <div class="show-top">
     <div class="show-progress" id="show-progress"></div>
+    <span id="show-score" style="color:rgba(255,255,255,0.75); font-size:0.82rem; white-space:nowrap"></span>
     <button type="button" class="deck-x" id="show-close" aria-label="Close">✕</button>
   </div>
   <div class="show-card" id="show-card"></div>
@@ -1736,6 +1741,57 @@ document.getElementById("top-swipe-world").addEventListener("click", launchWorld
 document.getElementById("top-swipe-fin").addEventListener("click", launchFinDeck);
 document.getElementById("top-recap").addEventListener("click", () => openShow());
 
+// ---------- recap prediction game ----------
+const RECAP_KEY = "newsdesk-recap-game";
+const loadGame = () => loadJSON(RECAP_KEY, { pending: [], results: [] });
+const saveGame = g => localStorage.setItem(RECAP_KEY, JSON.stringify(g));
+function weekKey(ts) {
+  const d = new Date(ts);
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return mon.getFullYear() + "-" + mon.getMonth() + "-" + mon.getDate();
+}
+function gradeRecapGame() {
+  const g = loadGame();
+  const buildTime = new Date(DATA.builtAt).getTime();
+  const graded = [];
+  g.pending = g.pending.filter(p => {
+    if (buildTime < p.madeAt + 18 * 3600e3) return true;
+    const c = todayCompanies[p.sym];
+    if (!c) return true;
+    const correct = (p.dir === "up") === (c.price > p.priceAt);
+    const rec = { sym: p.sym, dir: p.dir, correct, at: buildTime,
+      move: (c.price - p.priceAt) / p.priceAt * 100 };
+    g.results.unshift(rec);
+    graded.push(rec);
+    return false;
+  });
+  g.results = g.results.slice(0, 200);
+  saveGame(g);
+  return graded;
+}
+function gameScore() {
+  const g = loadGame();
+  const wk = weekKey(Date.now());
+  return {
+    total: g.results.filter(r => r.correct).length,
+    week: g.results.filter(r => r.correct && weekKey(r.at) === wk).length,
+    played: g.results.length,
+    pending: g.pending.length,
+  };
+}
+function refreshScoreChip() {
+  const s = gameScore();
+  const chip = document.getElementById("score-chip");
+  chip.hidden = s.played + s.pending === 0;
+  document.getElementById("score-total").textContent = s.total + " pts";
+  document.getElementById("score-week").textContent = s.week + " this week"
+    + (s.pending ? " · " + s.pending + " pending" : "");
+}
+let recapGraded = gradeRecapGame();
+refreshScoreChip();
+document.getElementById("score-chip").addEventListener("click", () => openShow());
+
 // ---------- market recap show ----------
 const SLIDE_MS = 9000;
 const show = document.getElementById("show");
@@ -1759,6 +1815,18 @@ function buildShowProgress() {
 function renderShowSlide(c) {
   showCard.innerHTML = "";
   const up = c.changePct >= 0;
+
+  // fresh verdicts from earlier calls, shown once at the top of the reel
+  if (recapGraded.length && showIdx === 0) {
+    recapGraded.forEach(r => {
+      const b = document.createElement("div");
+      b.className = "graded-banner";
+      b.innerHTML = `${r.sym}: you called ${r.dir === "up" ? "▲" : "▼"} — it went `
+        + `<b>${r.move >= 0 ? "+" : ""}${r.move.toFixed(2)}%</b> `
+        + (r.correct ? '<span class="ok">✓ +1 pt</span>' : '<span class="bad">✗ no point</span>');
+      showCard.appendChild(b);
+    });
+  }
 
   const kicker = document.createElement("span");
   kicker.className = "kicker show-seq";
@@ -1805,8 +1873,39 @@ function renderShowSlide(c) {
   sum.textContent = c.newsSummary || "No summary this refresh — open the company popup for headlines.";
   showCard.appendChild(sum);
 
+  // the game: call tomorrow's direction, earn a point if right
+  const callRow = document.createElement("div");
+  callRow.className = "ledger-row show-seq";
+  const pend = loadGame().pending.find(p => p.sym === c.symbol);
+  const lockLine = dir => {
+    callRow.innerHTML = `<span class="locked">Your call: ${dir === "up" ? "▲ higher" : "▼ lower"} tomorrow · ✓ = +1 pt</span>`;
+  };
+  if (pend) lockLine(pend.dir);
+  else {
+    const q = document.createElement("span");
+    q.className = "locked";
+    q.textContent = "Call it — " + c.symbol + " tomorrow?";
+    const mk = (dir, cls, txt) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "dir-btn"; b.textContent = txt;
+      b.addEventListener("click", () => {
+        const g = loadGame();
+        g.pending.push({ sym: c.symbol, dir, priceAt: c.price, madeAt: Date.now() });
+        saveGame(g);
+        refreshScoreChip();
+        updateShowScore();
+        lockLine(dir);
+      });
+      return b;
+    };
+    callRow.appendChild(q);
+    callRow.appendChild(mk("up", "sel-up", "▲ Higher"));
+    callRow.appendChild(mk("down", "sel-down", "▼ Lower"));
+  }
+  showCard.appendChild(callRow);
+
   // sequence: card pieces fade in one after another
-  [kicker, head, svg, about, sum].forEach((el, i) => { el.style.animationDelay = (i * 0.55) + "s"; });
+  [kicker, head, svg, about, sum, callRow].forEach((el, i) => { el.style.animationDelay = (i * 0.55) + "s"; });
 
   // slow self-drawing chart
   if (line) {
@@ -1857,12 +1956,20 @@ function toggleShowPause() {
   document.getElementById("show-pause").textContent = showPaused ? "▶" : "⏸";
 }
 
+function updateShowScore() {
+  const s = gameScore();
+  document.getElementById("show-score").textContent =
+    `🏆 ${s.total} pts · ${s.week} this wk` + (s.pending ? ` · ${s.pending} pending` : "");
+}
+
 function openShow() {
   if (!showCompanies().length) return;
   showIdx = 0;
+  updateShowScore();
   show.classList.add("open");
   document.body.style.overflow = "hidden";
   playShowSlide();
+  recapGraded = [];
 }
 function closeShow() {
   clearTimeout(showTimer);
