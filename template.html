@@ -356,15 +356,6 @@
   .stat-row.nodata .val { color: var(--muted); font-weight: 400; }
   .stat-why { font-size: 0.72rem; color: var(--muted); margin: 1px 0 0 138px; opacity: 0.8; }
 
-  /* ---------- portrait ---------- */
-  .portrait-list details { margin-top: 8px; font-size: 0.88rem; }
-  .portrait-list summary { cursor: pointer; color: #9f86ff; }
-  .portrait-list p { white-space: pre-wrap; margin-top: 6px; }
-  #portrait-input {
-    width: 100%; min-height: 90px; margin-top: 10px; background: var(--chip);
-    color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 10px;
-    font: inherit; font-size: 0.85rem;
-  }
   .match-note {
     color: #9f86ff; font-size: 0.7rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
@@ -716,20 +707,6 @@
       <p id="model-themes"></p>
     </div>
     <ul class="saved-list" id="phil-list" style="max-height:32vh"></ul>
-    <div class="model-box">
-      <span class="kicker" style="color:#9f86ff">The weekly portrait</span>
-      <p style="color:var(--muted)">Once a week: copy the prompt, paste it to Claude, and it writes a portrait
-        of you as an economic creature from everything this page has learned. Paste the result back to archive it.</p>
-      <div class="modal-actions" style="margin-top:10px">
-        <button type="button" class="btn" id="portrait-copy">📜 Copy portrait prompt</button>
-        <button type="button" class="btn ghost" id="portrait-toggle">Archive a portrait</button>
-      </div>
-      <textarea id="portrait-input" hidden placeholder="Paste Claude's portrait here…"></textarea>
-      <div class="modal-actions" id="portrait-save-row" hidden style="margin-top:8px">
-        <button type="button" class="btn" id="portrait-save">Save portrait</button>
-      </div>
-      <div class="portrait-list" id="portrait-list"></div>
-    </div>
     <div class="modal-actions" style="margin-top:16px">
       <button type="button" class="btn ghost" id="phil-clear">Forget it all</button>
     </div>
@@ -2404,71 +2381,6 @@ function renderPersona() {
 }
 renderPersona();
 document.getElementById("phil-chip").addEventListener("click", renderPersona);
-
-// ---------- weekly portrait ----------
-const PORTRAITS_KEY = "newsdesk-portraits";
-function portraitPrompt() {
-  const led = loadLedger();
-  const port = loadPort();
-  const s = ledgerStats(led.history);
-  const pStats = personaStats();
-  const data = {
-    computedPersona: { name: personaName(pStats),
-      stats: pStats.map(x => x.name + ": " + (x.val == null ? "unknown" : x.val + "%")) },
-    philosophicalAnswers: loadAnswers(),
-    tasteModel: loadProfile(),
-    marketPredictions: { record: `${s.right}/${s.n}`, avgConfidence: Math.round(s.avgConf), streak: s.streak },
-    paperPortfolio: {
-      positions: Object.keys(port.positions),
-      realizedTrades: port.realized.slice(0, 10),
-      cardOpensPerCompany: port.opens,
-    },
-    savedStories: loadSaved().map(x => x.title).slice(0, 15),
-  };
-  return "Below is behavioral data a news page collected about me: philosophical answers I chose, "
-    + "news themes I swipe toward and away from, market predictions with my confidence levels, "
-    + "a paper portfolio and which holdings I check, and headlines I saved. "
-    + "Write a ~200-word psychological portrait of me as an economic creature — second person, honest, "
-    + "specific to the data, no flattery, no disclaimers. Name my likely biases and one blind spot.\n\n"
-    + JSON.stringify(data, null, 1);
-}
-document.getElementById("portrait-copy").addEventListener("click", async e => {
-  try {
-    await navigator.clipboard.writeText(portraitPrompt());
-    e.target.textContent = "✓ Copied — now paste it to Claude";
-    setTimeout(() => { e.target.textContent = "📜 Copy portrait prompt"; }, 3500);
-  } catch { alert("Couldn't reach the clipboard — click the page once and try again."); }
-});
-const portraitInput = document.getElementById("portrait-input");
-const portraitSaveRow = document.getElementById("portrait-save-row");
-document.getElementById("portrait-toggle").addEventListener("click", () => {
-  portraitInput.hidden = !portraitInput.hidden;
-  portraitSaveRow.hidden = portraitInput.hidden;
-});
-document.getElementById("portrait-save").addEventListener("click", () => {
-  const text = portraitInput.value.trim();
-  if (!text) return;
-  const list = loadJSON(PORTRAITS_KEY, []);
-  list.unshift({ date: new Date().toISOString(), text });
-  localStorage.setItem(PORTRAITS_KEY, JSON.stringify(list.slice(0, 30)));
-  portraitInput.value = "";
-  portraitInput.hidden = true; portraitSaveRow.hidden = true;
-  renderPortraits();
-});
-function renderPortraits() {
-  const box = document.getElementById("portrait-list");
-  box.innerHTML = "";
-  loadJSON(PORTRAITS_KEY, []).forEach(p => {
-    const d = document.createElement("details");
-    const sum = document.createElement("summary");
-    sum.textContent = "Portrait · " + new Date(p.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-    const body = document.createElement("p");
-    body.textContent = p.text;
-    d.appendChild(sum); d.appendChild(body);
-    box.appendChild(d);
-  });
-}
-renderPortraits();
 
 // ---------- entrance stagger ----------
 document.querySelectorAll(".fc, .co").forEach((c, i) => {
