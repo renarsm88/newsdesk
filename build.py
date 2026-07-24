@@ -17,7 +17,8 @@ HERE = Path(__file__).resolve().parent
 CLAUDE_BIN = "/Users/renarsm8/.local/bin/claude"
 WORLD_FEED = "https://feeds.bbci.co.uk/news/world/rss.xml"
 MARKET_FEED = "https://feeds.content.dowjones.io/public/rss/mw_topstories"
-INDICES = [("^GSPC", "S&P 500"), ("^DJI", "Dow Jones"), ("^IXIC", "Nasdaq")]
+INDICES = [("^GSPC", "S&P 500"), ("^DJI", "Dow Jones"), ("^IXIC", "Nasdaq"),
+           ("CL=F", "Oil (WTI)"), ("GC=F", "Gold"), ("BTC-USD", "Bitcoin")]
 MAX_STORIES = 12
 MAX_MARKET_STORIES = 9
 MEDIA_NS = "{http://search.yahoo.com/mrss/}"
@@ -272,6 +273,66 @@ def publish():
         print(f"  (site publish skipped: {exc})")
 
 
+def ripple_rounds(world, indices):
+    """The Ripple game: which asset actually felt each world story today."""
+    assets = [{"name": i["name"], "changePct": i["changePct"]} for i in indices]
+    if len(assets) < 4 or not world:
+        return []
+    stories = [{"i": i, "title": a["title"], "summary": a["description"][:160]}
+               for i, a in enumerate(world)]
+    prompt = (
+        "Today's asset moves: " + json.dumps(assets, ensure_ascii=False) + "\n\n"
+        "News stories: " + json.dumps(stories, ensure_ascii=False) + "\n\n"
+        "Pick up to 5 stories with a REAL market connection and output ONLY a JSON array: "
+        '[{"story": <i>, "options": ["asset name", x4], "answer": "asset name", "why": "..."}]. '
+        "options: exactly 4 distinct asset names from the list above, including the answer. "
+        "answer: the asset whose ACTUAL move today most plausibly connects to that story. "
+        '"why": one sentence linking the story to the answer\'s real move. '
+        "Skip stories with no market link. No text before or after the JSON."
+    )
+    cache = load_cache()
+    key = content_key(["ripple-v1", stories, assets])
+    try:
+        if cache.get("ripple_key") == key:
+            parsed = cache["ripple"]
+            print("  ripple rounds: cached")
+        else:
+            result = subprocess.run(
+                [CLAUDE_BIN, "-p", "--model", "haiku", prompt],
+                capture_output=True, timeout=240, check=True,
+            )
+            match = re.search(r"\[.*\]", result.stdout.decode("utf-8"), re.S)
+            parsed = json.loads(match.group(0))
+            cache["ripple_key"] = key
+            cache["ripple"] = parsed
+            save_cache(cache)
+            print(f"  ripple rounds: fresh {len(parsed)}")
+    except Exception as exc:
+        print(f"  (ripple failed, game hidden today: {exc})")
+        return []
+
+    rounds = []
+    for r in parsed:
+        try:
+            a = world[int(r["story"])]
+            opts = [next(x for x in assets if x["name"] == name) for name in r["options"][:4]]
+            answer = next(j for j, o in enumerate(opts) if o["name"] == r["answer"])
+            if len({o["name"] for o in opts}) != 4:
+                continue
+            rounds.append({
+                "id": content_key([a["title"]])[:12],
+                "title": a["title"],
+                "emoji": a.get("emoji", ""),
+                "link": a["link"],
+                "options": opts,
+                "answer": answer,
+                "why": str(r.get("why", ""))[:240],
+            })
+        except (KeyError, IndexError, StopIteration, ValueError, TypeError):
+            continue
+    return rounds[:5]
+
+
 def companies_in_the_news(articles, market_news, companies):
     """Companies Claude spotted in today's stories: attach mentions to known
     companies, fetch fresh data for new symbols."""
@@ -306,11 +367,13 @@ def main():
     summarize_companies(companies)
     articles = classify_stories(articles, market_news)
     news_companies = companies_in_the_news(articles, market_news, companies)
+    ripple = ripple_rounds(articles, indices)
     data = {
         "articles": articles,
         "market": {"indices": indices, "news": market_news},
         "companies": companies,
         "newsCompanies": news_companies,
+        "ripple": ripple,
         "builtAt": datetime.now(timezone.utc).isoformat(),
     }
 
