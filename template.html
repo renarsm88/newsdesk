@@ -334,6 +334,16 @@
   .pos-line { font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--muted); }
   .pos-line .up, .pos-line .down { font-weight: 700; }
 
+  /* ---------- persona stats ---------- */
+  .stat-row { display: flex; align-items: center; gap: 10px; margin-top: 9px; font-size: 0.85rem; }
+  .stat-row .lbl { width: 128px; flex: none; color: var(--muted); }
+  .stat-bar { flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .stat-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, #7a4edc, #9f86ff); transition: width 0.6s ease; }
+  .stat-row .val { width: 44px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; flex: none; }
+  .stat-row.nodata .stat-fill { opacity: 0.25; }
+  .stat-row.nodata .val { color: var(--muted); font-weight: 400; }
+  .stat-why { font-size: 0.72rem; color: var(--muted); margin: 1px 0 0 138px; opacity: 0.8; }
+
   /* ---------- portrait ---------- */
   .portrait-list details { margin-top: 8px; font-size: 0.88rem; }
   .portrait-list summary { cursor: pointer; color: #9f86ff; }
@@ -663,6 +673,12 @@
   <div class="modal-body">
     <span class="kicker" style="color:#9f86ff">Your philosophy</span>
     <h2 style="font-family:Georgia,serif; margin:6px 0 4px">Where you lean</h2>
+    <div class="model-box" id="persona-box">
+      <span class="kicker" style="color:#9f86ff">The person this page sees</span>
+      <h3 id="persona-name" style="font-family:Georgia,serif; font-size:1.3rem; margin:4px 0 0"></h3>
+      <p id="persona-note" style="color:var(--muted)"></p>
+      <div id="persona-stats"></div>
+    </div>
     <div class="model-box">
       <span class="kicker" style="color:var(--muted)">The model</span>
       <p id="model-status"></p>
@@ -1932,16 +1948,21 @@ const loadLedger = () => loadJSON(LEDGER_KEY, { pending: [], history: [] });
 const saveLedger = l => localStorage.setItem(LEDGER_KEY, JSON.stringify(l));
 const spxNow = () => ((DATA.market && DATA.market.indices) || []).find(i => i.name === "S&P 500");
 
+const callLabel = p => p.market === "spx" ? "S&P 500" : p.sym;
+
 function gradePredictions() {
   const led = loadLedger();
   const idx = spxNow();
-  if (!idx) return [];
   const buildTime = new Date(DATA.builtAt).getTime();
   const graded = [];
   led.pending = led.pending.filter(p => {
     if (buildTime < p.madeAt + 18 * 3600e3) return true;
-    const correct = (p.dir === "up") === (idx.price > p.priceAt);
-    const rec = { ...p, priceNow: idx.price, correct, gradedAt: buildTime };
+    const now = p.market === "spx"
+      ? (idx && idx.price)
+      : (todayCompanies[p.sym] && todayCompanies[p.sym].price);
+    if (now == null) return true; // no fresh data yet — reality hasn't reported in
+    const correct = (p.dir === "up") === (now > p.priceAt);
+    const rec = { ...p, priceNow: now, correct, gradedAt: buildTime };
     led.history.unshift(rec);
     graded.push(rec);
     return false;
@@ -1959,6 +1980,57 @@ function ledgerStats(hist) {
   return { n, right, acc: n ? right / n : 0, streak, avgConf };
 }
 
+function callBlock(box, title, pending, price, makeRecord) {
+  const h3 = document.createElement("h3");
+  h3.textContent = title;
+  box.appendChild(h3);
+  if (pending) {
+    const l = document.createElement("div");
+    l.className = "locked";
+    l.textContent = `Locked in: ${pending.dir.toUpperCase()} at ${pending.conf}% sure (from $`
+      + pending.priceAt.toLocaleString("en-US") + `). Reality grades you after ~18h.`;
+    box.appendChild(l);
+    return;
+  }
+  if (price == null) {
+    const l = document.createElement("div");
+    l.className = "locked";
+    l.textContent = "No fresh data this refresh — try later.";
+    box.appendChild(l);
+    return;
+  }
+  let dir = null, conf = 70;
+  const row = document.createElement("div");
+  row.className = "ledger-row";
+  const upBtn = document.createElement("button");
+  upBtn.className = "dir-btn"; upBtn.type = "button"; upBtn.textContent = "▲ Higher";
+  const dnBtn = document.createElement("button");
+  dnBtn.className = "dir-btn"; dnBtn.type = "button"; dnBtn.textContent = "▼ Lower";
+  const lock = document.createElement("button");
+  lock.className = "btn"; lock.type = "button"; lock.textContent = "Lock it in";
+  lock.style.opacity = "0.4";
+  upBtn.addEventListener("click", () => { dir = "up"; upBtn.classList.add("sel-up"); dnBtn.classList.remove("sel-down"); lock.style.opacity = "1"; });
+  dnBtn.addEventListener("click", () => { dir = "down"; dnBtn.classList.add("sel-down"); upBtn.classList.remove("sel-up"); lock.style.opacity = "1"; });
+  row.appendChild(upBtn); row.appendChild(dnBtn); row.appendChild(lock);
+  box.appendChild(row);
+
+  const confRow = document.createElement("div");
+  confRow.className = "conf-row";
+  confRow.innerHTML = `how sure are you? <input type="range" min="55" max="95" step="5" value="70"> <b>70%</b>`;
+  const slider = confRow.querySelector("input");
+  const confLabel = confRow.querySelector("b");
+  slider.addEventListener("input", () => { conf = +slider.value; confLabel.textContent = conf + "%"; });
+  box.appendChild(confRow);
+
+  lock.addEventListener("click", () => {
+    if (!dir) return;
+    const l = loadLedger();
+    l.pending.push(makeRecord(dir, conf));
+    saveLedger(l);
+    renderLedger();
+  });
+}
+
 function renderLedger(justGraded) {
   const box = document.getElementById("ledger-box");
   box.innerHTML = "";
@@ -1969,59 +2041,30 @@ function renderLedger(justGraded) {
     const b = document.createElement("div");
     b.className = "graded-banner";
     const move = ((g.priceNow - g.priceAt) / g.priceAt * 100).toFixed(2);
-    b.innerHTML = `You called <b>${g.dir.toUpperCase()}</b> at <b>${g.conf}%</b> sure — the S&P went `
+    b.innerHTML = `You called <b>${callLabel(g)} ${g.dir.toUpperCase()}</b> at <b>${g.conf}%</b> sure — it went `
       + `<b>${move >= 0 ? "+" : ""}${move}%</b>. `
       + (g.correct ? '<span class="ok">Right.</span>' : '<span class="bad">Wrong.</span>');
     box.appendChild(b);
   });
 
-  const h3 = document.createElement("h3");
-  h3.textContent = "Will the S&P 500 be higher this time tomorrow?";
-  box.appendChild(h3);
+  callBlock(box,
+    "Will the S&P 500 be higher this time tomorrow?",
+    led.pending.find(p => p.market === "spx"),
+    idx && idx.price,
+    (dir, conf) => ({ market: "spx", dir, conf, priceAt: idx.price, madeAt: Date.now() }));
 
-  const open = led.pending.find(p => p.market === "spx");
-  if (open) {
-    const l = document.createElement("div");
-    l.className = "locked";
-    l.textContent = `Locked in: ${open.dir.toUpperCase()} at ${open.conf}% sure (from $`
-      + open.priceAt.toLocaleString("en-US") + `). Reality grades you on the next refresh after ~18h.`;
-    box.appendChild(l);
-  } else if (!idx) {
-    const l = document.createElement("div");
-    l.className = "locked";
-    l.textContent = "No index data this refresh — try later.";
-    box.appendChild(l);
-  } else {
-    let dir = null, conf = 70;
-    const row = document.createElement("div");
-    row.className = "ledger-row";
-    const upBtn = document.createElement("button");
-    upBtn.className = "dir-btn"; upBtn.type = "button"; upBtn.textContent = "▲ Higher";
-    const dnBtn = document.createElement("button");
-    dnBtn.className = "dir-btn"; dnBtn.type = "button"; dnBtn.textContent = "▼ Lower";
-    const lock = document.createElement("button");
-    lock.className = "btn"; lock.type = "button"; lock.textContent = "Lock it in";
-    lock.style.opacity = "0.4";
-    upBtn.addEventListener("click", () => { dir = "up"; upBtn.classList.add("sel-up"); dnBtn.classList.remove("sel-down"); lock.style.opacity = "1"; });
-    dnBtn.addEventListener("click", () => { dir = "down"; dnBtn.classList.add("sel-down"); upBtn.classList.remove("sel-up"); lock.style.opacity = "1"; });
-    row.appendChild(upBtn); row.appendChild(dnBtn); row.appendChild(lock);
-    box.appendChild(row);
-
-    const confRow = document.createElement("div");
-    confRow.className = "conf-row";
-    confRow.innerHTML = `how sure are you? <input type="range" min="55" max="95" step="5" value="70"> <b>70%</b>`;
-    const slider = confRow.querySelector("input");
-    const confLabel = confRow.querySelector("b");
-    slider.addEventListener("input", () => { conf = +slider.value; confLabel.textContent = conf + "%"; });
-    box.appendChild(confRow);
-
-    lock.addEventListener("click", () => {
-      if (!dir) return;
-      const l = loadLedger();
-      l.pending.push({ market: "spx", dir, conf, priceAt: idx.price, madeAt: Date.now() });
-      saveLedger(l);
-      renderLedger();
-    });
+  // one of YOUR companies, rotating daily through the desk
+  const starredHere = Object.keys(loadStars()).filter(sym => todayCompanies[sym]);
+  if (starredHere.length) {
+    const openStock = led.pending.find(p => p.market === "stock");
+    const sym = openStock ? openStock.sym
+      : starredHere[new Date().getDate() % starredHere.length];
+    const c = todayCompanies[sym];
+    callBlock(box,
+      `And one of yours — will ${sym} (${c ? c.name : sym}) be higher?`,
+      openStock,
+      c && c.price,
+      (dir, conf) => ({ market: "stock", sym, dir, conf, priceAt: c.price, madeAt: Date.now() }));
   }
 
   const s = ledgerStats(led.history);
@@ -2039,11 +2082,11 @@ function renderLedger(justGraded) {
 
     const hist = document.createElement("div");
     hist.className = "ledger-hist";
-    led.history.slice(0, 3).forEach(h => {
+    led.history.slice(0, 4).forEach(h => {
       const move = ((h.priceNow - h.priceAt) / h.priceAt * 100).toFixed(2);
       const d = document.createElement("div");
       d.innerHTML = `${new Date(h.madeAt).toLocaleDateString("en-GB", { weekday: "short" })}: `
-        + `${h.dir.toUpperCase()} ${h.conf}% → market ${move >= 0 ? "+" : ""}${move}% `
+        + `${callLabel(h)} ${h.dir.toUpperCase()} ${h.conf}% → ${move >= 0 ? "+" : ""}${move}% `
         + (h.correct ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>');
       hist.appendChild(d);
     });
@@ -2057,13 +2100,134 @@ function renderLedger(justGraded) {
 }
 renderLedger(gradePredictions());
 
+// ---------- the persona: a person made of your data ----------
+const avgOf = a => a.reduce((x, y) => x + y, 0) / a.length;
+const clampPct = x => Math.max(2, Math.min(98, Math.round(x)));
+
+function personaStats() {
+  const p = loadProfile();
+  const led = loadLedger();
+  const s = ledgerStats(led.history);
+  const port = loadPort();
+  const stars = loadStars();
+  const t = th => themeScore(p, th);
+  const vol = ths => ths.reduce((n, x) => n + (p.themes[x] ? p.themes[x].up + p.themes[x].down : 0), 0);
+  const allCalls = led.history.concat(led.pending);
+
+  const stats = [];
+
+  // Optimism: how often you call UP + affinity for bright themes
+  const sig = [];
+  if (allCalls.length >= 2) sig.push(allCalls.filter(c => c.dir === "up").length / allCalls.length * 100);
+  if (vol(["happiness", "ambition", "fear"]) >= 2) sig.push(50 + (t("happiness") + t("ambition") - t("fear")) * 40);
+  stats.push({ name: "Optimism", val: sig.length ? clampPct(avgOf(sig)) : null,
+    why: "your up-vs-down calls · bright vs dark themes" });
+
+  // Risk appetite: confidence you claim + how volatile your starred companies are
+  const sigR = [];
+  if (allCalls.length >= 2) sigR.push((avgOf(allCalls.map(c => c.conf)) - 55) / 40 * 100);
+  const starMoves = Object.keys(stars).map(sym => todayCompanies[sym])
+    .filter(Boolean).map(c => Math.abs(c.changePct));
+  if (starMoves.length) sigR.push(Math.min(100, avgOf(starMoves) * 9));
+  if (vol(["courage", "change", "fear", "acceptance"]) >= 2)
+    sigR.push(50 + (t("courage") + t("change") - t("fear") - t("acceptance")) * 30);
+  stats.push({ name: "Risk appetite", val: sigR.length ? clampPct(avgOf(sigR)) : null,
+    why: "confidence levels · volatility of companies you star" });
+
+  // Self-trust: raw claimed confidence
+  stats.push({ name: "Self-trust", val: allCalls.length >= 2
+      ? clampPct((avgOf(allCalls.map(c => c.conf)) - 50) / 45 * 100) : null,
+    why: "how sure you say you are" });
+
+  // Calibration: is that confidence earned
+  stats.push({ name: "Calibration", val: s.n >= 3
+      ? clampPct(100 - Math.max(0, s.avgConf - s.acc * 100) * 2.5) : null,
+    why: "confidence vs actual record" });
+
+  // Agency: effort over luck
+  stats.push({ name: "Agency", val: vol(["effort", "change", "ambition", "luck", "acceptance"]) >= 2
+      ? clampPct(50 + (t("effort") + t("change") + t("ambition") - t("luck") - t("acceptance")) * 25) : null,
+    why: "effort & change over luck & acceptance" });
+
+  // Warmth: heart over head
+  stats.push({ name: "Warmth", val: vol(["kindness", "ordinary-life", "money", "power"]) >= 2
+      ? clampPct(50 + (t("kindness") + t("ordinary-life") - t("money") - t("power")) * 35) : null,
+    why: "kindness & small life vs money & power" });
+
+  // Loyalty: do you hold what you pick
+  const held = Object.keys(port.positions).length, sold = port.realized.length;
+  stats.push({ name: "Loyalty", val: held + sold >= 2
+      ? clampPct(held / (held + sold) * 100) : null,
+    why: "companies held vs sold off your desk" });
+
+  return stats;
+}
+
+function personaName(stats) {
+  const get = n => { const s = stats.find(x => x.name === n); return s && s.val != null ? s.val : 50; };
+  const risk = get("Risk appetite"), opt = get("Optimism"), agency = get("Agency"),
+        trust = get("Self-trust"), calib = get("Calibration");
+  const adj = risk >= 62 ? (calib >= 55 ? "Bold" : "Reckless")
+    : risk <= 38 ? "Careful"
+    : trust >= 65 ? "Convinced" : "Measured";
+  const noun = opt >= 60 ? (agency >= 58 ? "Builder" : "Optimist")
+    : opt <= 40 ? (agency >= 58 ? "Fighter" : "Skeptic")
+    : agency >= 58 ? "Realist" : "Observer";
+  return `The ${adj} ${noun}`;
+}
+
+function renderPersona() {
+  const stats = personaStats();
+  const withData = stats.filter(s => s.val != null);
+  const nameEl = document.getElementById("persona-name");
+  const noteEl = document.getElementById("persona-note");
+  const box = document.getElementById("persona-stats");
+  box.innerHTML = "";
+
+  const p = loadProfile();
+  const led = loadLedger();
+  const answers = Object.values(loadAnswers())
+    .reduce((n, e) => n + Object.values(e.counts).reduce((a, b) => a + b, 0), 0);
+  const sources = `${answers} answers · ${p.swipes} swipes · `
+    + `${led.history.length + led.pending.length} market calls · ${Object.keys(loadStars()).length} companies followed`;
+
+  if (withData.length < 2) {
+    nameEl.textContent = "A stranger, so far";
+    noteEl.textContent = "Answer questions, swipe stories, make market calls — a person takes shape here. (" + sources + ")";
+  } else {
+    nameEl.textContent = personaName(stats);
+    noteEl.textContent = withData.length < stats.length
+      ? `Sketched from ${sources}. Gray bars are still unknown.`
+      : `Drawn from ${sources}.`;
+  }
+
+  stats.forEach(s => {
+    const row = document.createElement("div");
+    row.className = "stat-row" + (s.val == null ? " nodata" : "");
+    row.innerHTML = `<span class="lbl"></span><div class="stat-bar"><div class="stat-fill"></div></div><span class="val"></span>`;
+    row.querySelector(".lbl").textContent = s.name;
+    row.querySelector(".stat-fill").style.width = (s.val == null ? 50 : s.val) + "%";
+    row.querySelector(".val").textContent = s.val == null ? "—" : s.val + "%";
+    box.appendChild(row);
+    const why = document.createElement("div");
+    why.className = "stat-why";
+    why.textContent = s.why;
+    box.appendChild(why);
+  });
+}
+renderPersona();
+document.getElementById("phil-chip").addEventListener("click", renderPersona);
+
 // ---------- weekly portrait ----------
 const PORTRAITS_KEY = "newsdesk-portraits";
 function portraitPrompt() {
   const led = loadLedger();
   const port = loadPort();
   const s = ledgerStats(led.history);
+  const pStats = personaStats();
   const data = {
+    computedPersona: { name: personaName(pStats),
+      stats: pStats.map(x => x.name + ": " + (x.val == null ? "unknown" : x.val + "%")) },
     philosophicalAnswers: loadAnswers(),
     tasteModel: loadProfile(),
     marketPredictions: { record: `${s.right}/${s.n}`, avgConfidence: Math.round(s.avgConf), streak: s.streak },
