@@ -465,6 +465,19 @@
   .show-spark { width: 100%; height: 150px; margin: 16px 0 6px; }
   .show-spark polyline { fill: none; stroke-width: 3; }
   .show-spark .base { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+  .chart3d { perspective: 950px; margin: 14px 0 4px; }
+  .bigchart {
+    width: 100%; height: auto; display: block; touch-action: none;
+    transition: transform 0.2s ease; transform-style: preserve-3d; cursor: crosshair;
+  }
+  .bigchart text { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; }
+  .bigchart .gridline { stroke: var(--line); stroke-width: 1; }
+  .bigchart .axis-label { fill: var(--muted); font-size: 11px; }
+  .bigchart .mainline { fill: none; stroke-width: 2.5; }
+  .bigchart .baseline { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+  .bigchart .xhair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 3; }
+  .bigchart .xhair-dot { stroke: var(--card); stroke-width: 2; }
+  .bigchart .xhair-label { font-size: 12px; font-weight: 700; }
   .show-about { color: var(--muted); font-style: italic; font-size: 0.95rem; margin-top: 2px; }
   .show-sum { font-size: 1.05rem; line-height: 1.55; margin-top: 14px; }
 
@@ -1857,11 +1870,10 @@ function renderShowSlide(c) {
   head.appendChild(priceBox);
   showCard.appendChild(head);
 
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "show-spark show-seq");
-  svg.setAttribute("preserveAspectRatio", "none");
-  showCard.appendChild(svg);
-  const line = drawSpark(svg, c.spark, c.prevClose, up);
+  const chartWrap = document.createElement("div");
+  chartWrap.className = "chart3d show-seq";
+  showCard.appendChild(chartWrap);
+  const line = drawBigChart(chartWrap, c.spark, c.sparkT, c.prevClose, up);
 
   const about = document.createElement("p");
   about.className = "show-about show-seq";
@@ -1905,7 +1917,7 @@ function renderShowSlide(c) {
   showCard.appendChild(callRow);
 
   // sequence: card pieces fade in one after another
-  [kicker, head, svg, about, sum, callRow].forEach((el, i) => { el.style.animationDelay = (i * 0.55) + "s"; });
+  [kicker, head, chartWrap, about, sum, callRow].forEach((el, i) => { el.style.animationDelay = (i * 0.55) + "s"; });
 
   // slow self-drawing chart
   if (line) {
@@ -1954,6 +1966,94 @@ function toggleShowPause() {
   showPaused = !showPaused;
   show.classList.toggle("paused", showPaused);
   document.getElementById("show-pause").textContent = showPaused ? "▶" : "⏸";
+}
+
+// interactive chart: axes, gridlines, touch crosshair, 3D tilt
+let chartUid = 0;
+function drawBigChart(wrap, series, times, prevClose, up) {
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 640, H = 235, padL = 10, padR = 58, padT = 14, padB = 28;
+  const uid = "cg" + (++chartUid);
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.setAttribute("class", "bigchart");
+  wrap.appendChild(svg);
+  if (!series || series.length < 2) return null;
+
+  const all = series.concat([prevClose]);
+  let min = Math.min(...all), max = Math.max(...all);
+  const span = (max - min) || 1;
+  min -= span * 0.08; max += span * 0.08;
+  const x = i => padL + (i / (series.length - 1)) * (W - padL - padR);
+  const y = v => padT + (1 - (v - min) / (max - min)) * (H - padT - padB);
+  const el = (tag, attrs) => {
+    const e = document.createElementNS(NS, tag);
+    Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+    svg.appendChild(e); return e;
+  };
+  const money = v => "$" + (v >= 1000 ? Math.round(v).toLocaleString("en-US") : v.toFixed(2));
+  const clock = t => new Date(t * 1000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+  // y grid + labels
+  for (let g = 0; g <= 3; g++) {
+    const v = min + (max - min) * g / 3;
+    el("line", { class: "gridline", x1: padL, x2: W - padR, y1: y(v), y2: y(v), opacity: 0.55 });
+    el("text", { class: "axis-label", x: W - padR + 7, y: y(v) + 4 }).textContent = money(v);
+  }
+  // x time labels
+  if (times && times.length === series.length) {
+    [0, Math.floor(series.length / 2), series.length - 1].forEach(i => {
+      el("text", { class: "axis-label", x: x(i), y: H - 8,
+        "text-anchor": i === 0 ? "start" : i === series.length - 1 ? "end" : "middle" }).textContent = clock(times[i]);
+    });
+  }
+  // previous close
+  el("line", { class: "baseline", x1: padL, x2: W - padR, y1: y(prevClose), y2: y(prevClose) });
+  el("text", { class: "axis-label", x: W - padR + 7, y: y(prevClose) + 4, opacity: 0.75 }).textContent = "prev";
+
+  // gradient area under the line
+  const defs = document.createElementNS(NS, "defs");
+  defs.innerHTML = `<linearGradient id="${uid}" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="${up ? "#2aa457" : "#d33a2f"}" stop-opacity="0.28"/>
+    <stop offset="1" stop-color="${up ? "#2aa457" : "#d33a2f"}" stop-opacity="0"/></linearGradient>`;
+  svg.appendChild(defs);
+  const pts = series.map((v, i) => `${x(i)},${y(v)}`).join(" ");
+  el("polygon", { points: `${padL},${H - padB} ${pts} ${x(series.length - 1)},${H - padB}`,
+    fill: `url(#${uid})`, stroke: "none" });
+  const line = el("polyline", { class: "mainline", points: pts,
+    stroke: up ? "var(--up)" : "var(--down)" });
+
+  // crosshair that follows your finger
+  const xh = el("line", { class: "xhair", y1: padT, y2: H - padB, x1: 0, x2: 0, visibility: "hidden" });
+  const dot = el("circle", { class: "xhair-dot", r: 5, fill: up ? "var(--up)" : "var(--down)", visibility: "hidden" });
+  const tipBg = el("rect", { rx: 5, fill: "var(--chip)", stroke: "var(--line)", visibility: "hidden", height: 22 });
+  const tip = el("text", { class: "xhair-label", fill: "var(--ink)", visibility: "hidden" });
+
+  svg.addEventListener("pointermove", e => {
+    const r = svg.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width * W;
+    const i = Math.max(0, Math.min(series.length - 1,
+      Math.round((px - padL) / (W - padL - padR) * (series.length - 1))));
+    const cx = x(i), cy = y(series[i]);
+    xh.setAttribute("x1", cx); xh.setAttribute("x2", cx);
+    dot.setAttribute("cx", cx); dot.setAttribute("cy", cy);
+    const label = money(series[i]) + (times && times[i] ? " · " + clock(times[i]) : "");
+    tip.textContent = label;
+    const tw = label.length * 6.6 + 14;
+    const tx = Math.max(padL, Math.min(cx - tw / 2, W - padR - tw));
+    tipBg.setAttribute("x", tx); tipBg.setAttribute("width", tw); tipBg.setAttribute("y", padT - 2);
+    tip.setAttribute("x", tx + 7); tip.setAttribute("y", padT + 13);
+    [xh, dot, tipBg, tip].forEach(n => n.setAttribute("visibility", "visible"));
+    // the 3D: the chart leans toward your touch
+    const rx = ((e.clientY - r.top) / r.height - 0.5) * -7;
+    const ry = ((e.clientX - r.left) / r.width - 0.5) * 9;
+    svg.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) scale(1.015)`;
+  });
+  svg.addEventListener("pointerleave", () => {
+    [xh, dot, tipBg, tip].forEach(n => n.setAttribute("visibility", "hidden"));
+    svg.style.transform = "";
+  });
+  return line;
 }
 
 function updateShowScore() {

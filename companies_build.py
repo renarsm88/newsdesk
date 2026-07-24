@@ -76,7 +76,11 @@ def fetch_company(symbol, badge):
     meta = result["meta"]
     price = meta["regularMarketPrice"]
     prev = meta["chartPreviousClose"]
-    closes = [c for c in result["indicators"]["quote"][0]["close"] if c is not None]
+    points = [(t, c) for t, c in zip(result.get("timestamp", []),
+                                     result["indicators"]["quote"][0]["close"])
+              if c is not None]
+    closes = [c for _, c in points]
+    times = [t for t, _ in points]
 
     headlines = []
     try:
@@ -107,6 +111,7 @@ def fetch_company(symbol, badge):
         "dayHigh": round(meta.get("regularMarketDayHigh", 0), 2),
         "dayLow": round(meta.get("regularMarketDayLow", 0), 2),
         "spark": [round(c, 4) for c in closes],
+        "sparkT": times,
         "news": headlines,
     }
 
