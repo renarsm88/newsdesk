@@ -577,8 +577,8 @@
   <div id="desk-stats" class="desk-stats" hidden></div>
   <div class="co-grid" id="desk-grid" style="margin-bottom: 34px"></div>
 
-  <div class="section-label">🎯 Conviction ledger · can you actually call the market?</div>
-  <div id="ledger-box" class="ledger" style="margin-bottom: 36px"></div>
+  <div class="section-label" id="ledger-label" hidden>🎯 Conviction ledger · can you actually call the market?</div>
+  <div id="ledger-box" class="ledger" style="margin-bottom: 36px" hidden></div>
 
   <div class="section-label">Biggest worldwide news · BBC
     <button type="button" class="swipe-btn" id="swipe-world">🔥 Swipe mode</button></div>
@@ -1969,25 +1969,10 @@ function ledgerStats(hist) {
   return { n, right, acc: n ? right / n : 0, streak, avgConf };
 }
 
-function callBlock(box, title, pending, price, makeRecord) {
+function callBlock(box, title, price, makeRecord) {
   const h3 = document.createElement("h3");
   h3.textContent = title;
   box.appendChild(h3);
-  if (pending) {
-    const l = document.createElement("div");
-    l.className = "locked";
-    l.textContent = `Locked in: ${pending.dir.toUpperCase()} at ${pending.conf}% sure (from $`
-      + pending.priceAt.toLocaleString("en-US") + `). Reality grades you after ~18h.`;
-    box.appendChild(l);
-    return;
-  }
-  if (price == null) {
-    const l = document.createElement("div");
-    l.className = "locked";
-    l.textContent = "No fresh data this refresh — try later.";
-    box.appendChild(l);
-    return;
-  }
   let dir = null, conf = 70;
   const row = document.createElement("div");
   row.className = "ledger-row";
@@ -2022,9 +2007,18 @@ function callBlock(box, title, pending, price, makeRecord) {
 
 function renderLedger(justGraded) {
   const box = document.getElementById("ledger-box");
+  const label = document.getElementById("ledger-label");
   box.innerHTML = "";
   const led = loadLedger();
   const idx = spxNow();
+
+  // only exists while there's something to do: a fresh verdict or an open question
+  const spxAskable = idx && !led.pending.find(p => p.market === "spx");
+  const starredHere = Object.keys(loadStars()).filter(sym => todayCompanies[sym]);
+  const stockAskable = starredHere.length > 0 && !led.pending.find(p => p.market === "stock");
+  const show = (justGraded || []).length > 0 || spxAskable || stockAskable;
+  label.hidden = box.hidden = !show;
+  if (!show) return;
 
   (justGraded || []).forEach(g => {
     const b = document.createElement("div");
@@ -2036,23 +2030,20 @@ function renderLedger(justGraded) {
     box.appendChild(b);
   });
 
-  callBlock(box,
-    "Will the S&P 500 be higher this time tomorrow?",
-    led.pending.find(p => p.market === "spx"),
-    idx && idx.price,
-    (dir, conf) => ({ market: "spx", dir, conf, priceAt: idx.price, madeAt: Date.now() }));
+  if (spxAskable) {
+    callBlock(box,
+      "Will the S&P 500 be higher this time tomorrow?",
+      idx.price,
+      (dir, conf) => ({ market: "spx", dir, conf, priceAt: idx.price, madeAt: Date.now() }));
+  }
 
   // one of YOUR companies, rotating daily through the desk
-  const starredHere = Object.keys(loadStars()).filter(sym => todayCompanies[sym]);
-  if (starredHere.length) {
-    const openStock = led.pending.find(p => p.market === "stock");
-    const sym = openStock ? openStock.sym
-      : starredHere[new Date().getDate() % starredHere.length];
+  if (stockAskable) {
+    const sym = starredHere[new Date().getDate() % starredHere.length];
     const c = todayCompanies[sym];
     callBlock(box,
-      `And one of yours — will ${sym} (${c ? c.name : sym}) be higher?`,
-      openStock,
-      c && c.price,
+      `And one of yours — will ${sym} (${c.name}) be higher?`,
+      c.price,
       (dir, conf) => ({ market: "stock", sym, dir, conf, priceAt: c.price, madeAt: Date.now() }));
   }
 
