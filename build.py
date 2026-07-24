@@ -214,10 +214,12 @@ def classify_stories(world, market):
         "is clearly about one country, otherwise a topic emoji (e.g. conflict, energy, health, tech); "
         'for kind="markets" use an emoji for the industry or asset involved. '
         f"themes: 1-2 that best fit the story's human angle, chosen ONLY from: {themes}. "
+        'Also add "tickers": up to 2 US stock symbols of public companies central to the story '
+        '(e.g. ["AMD","NVDA"]), or [] if none. '
         "No text before or after the JSON.\n\n" + json.dumps(items, ensure_ascii=False)
     )
     cache = load_cache()
-    key = content_key(items)
+    key = content_key(["v2-tickers", items])
     try:
         if cache.get("classify_key") == key:
             tags = cache["classify"]
@@ -240,6 +242,7 @@ def classify_stories(world, market):
                 a["tone"] = str(entry.get("tone", "neutral"))
                 a["emoji"] = str(entry.get("emoji", ""))[:4]
                 a["themes"] = [str(t) for t in entry.get("themes", [])][:2]
+                a["tickers"] = [str(t).upper().strip() for t in entry.get("tickers", [])][:2]
     except Exception as exc:
         print(f"  (classification failed, cards will be uniform: {exc})")
 
@@ -269,6 +272,32 @@ def publish():
         print(f"  (site publish skipped: {exc})")
 
 
+def companies_in_the_news(articles, market_news, companies):
+    """Companies Claude spotted in today's stories: attach mentions to known
+    companies, fetch fresh data for new symbols."""
+    mentions = {}
+    for a in articles + market_news:
+        for sym in a.get("tickers", []):
+            if re.fullmatch(r"[A-Z][A-Z.\-]{0,5}", sym):
+                mentions.setdefault(sym, []).append({"title": a["title"], "link": a["link"]})
+
+    known = {c["symbol"]: c for c in companies}
+    news_companies = []
+    for sym, arts in mentions.items():
+        if sym in known:
+            known[sym]["mentionedIn"] = arts
+            continue
+        if len(news_companies) >= 8:
+            break
+        try:
+            c = fetch_company(sym, "In the news")
+            c["mentionedIn"] = arts
+            news_companies.append(c)
+        except Exception as exc:
+            print(f"  (news company {sym} failed: {exc})")
+    return news_companies
+
+
 def main():
     articles = fetch_world()
     market_news = fetch_market_news()
@@ -276,10 +305,12 @@ def main():
     companies = fetch_companies()
     summarize_companies(companies)
     articles = classify_stories(articles, market_news)
+    news_companies = companies_in_the_news(articles, market_news, companies)
     data = {
         "articles": articles,
         "market": {"indices": indices, "news": market_news},
         "companies": companies,
+        "newsCompanies": news_companies,
         "builtAt": datetime.now(timezone.utc).isoformat(),
     }
 
@@ -287,7 +318,8 @@ def main():
     html_out = template.replace("/*__DATA__*/null", json.dumps(data, ensure_ascii=False))
     (HERE / "index.html").write_text(html_out, encoding="utf-8")
     print(f"Built index.html: {len(articles)} stories, {len(market_news)} market stories, "
-          f"{len(indices)} indices, {len(companies)} companies.")
+          f"{len(indices)} indices, {len(companies)} companies, "
+          f"{len(news_companies)} in the news.")
     publish()
 
 

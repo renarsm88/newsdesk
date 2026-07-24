@@ -102,6 +102,14 @@
     outline: none;
   }
   .co-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .star-btn {
+    cursor: pointer; font-size: 1.05rem; line-height: 1; color: var(--line);
+    transition: color 0.15s ease, transform 0.15s ease; flex: none; user-select: none;
+  }
+  .star-btn:hover { color: #f5b301; transform: scale(1.25); }
+  .star-btn.on { color: #f5b301; }
+  .co.stale { opacity: 0.72; }
+  .co.stale:hover { opacity: 1; }
   .tick { font-weight: 800; font-size: 1.05rem; letter-spacing: 0.02em; color: var(--tickblue); }
   .badge {
     font-size: 0.64rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
@@ -504,6 +512,9 @@
   <div class="section-label river-label"><span class="live-dot"></span> The wire · click what catches your eye</div>
   <div class="river"><div class="river-track" id="river-track"></div></div>
 
+  <div class="section-label" id="desk-label" hidden>⭐ Your desk · companies you follow</div>
+  <div class="co-grid" id="desk-grid" style="margin-bottom: 34px"></div>
+
   <div class="section-label">Biggest worldwide news · BBC
     <button type="button" class="swipe-btn" id="swipe-world">🔥 Swipe mode</button></div>
   <div class="grid" id="grid"></div>
@@ -515,6 +526,10 @@
   <div class="section-label" style="margin-top: 40px">Biggest financial news · MarketWatch
     <button type="button" class="swipe-btn" id="swipe-fin">🔥 Swipe mode</button></div>
   <div class="grid" id="fin-grid"></div>
+
+  <div class="section-label" style="margin-top: 40px" id="newsco-label" hidden>
+    Companies that made news today · tap ☆ to follow</div>
+  <div class="co-grid" id="newsco-grid"></div>
 
   <footer>
     World news from <a href="https://www.bbc.com/news/world" target="_blank" rel="noopener">BBC News</a> ·
@@ -546,6 +561,8 @@
     </div>
     <span class="kicker">Today's story</span>
     <p class="co-summary" id="co-summary"></p>
+    <span class="kicker" id="co-mentions-label" style="color: var(--muted)">Mentioned in today's stories</span>
+    <ul class="news-list" id="co-mentions" style="margin-bottom: 12px"></ul>
     <span class="kicker" style="color: var(--muted)">Latest headlines</span>
     <ul class="news-list" id="co-news"></ul>
     <div class="modal-actions" style="margin-top: 14px">
@@ -933,31 +950,106 @@ function drawSpark(svg, series, prevClose, up) {
   return line;
 }
 
-const coGrid = document.getElementById("co-grid");
 const coModal = document.getElementById("co-modal");
-(DATA.companies || []).forEach(c => {
+
+// starred companies + last-seen data snapshots (per browser)
+const STARS_KEY = "newsdesk-stars", SNAP_KEY = "newsdesk-snapshots";
+const loadJSON = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) || fb; } catch { return fb; } };
+const loadStars = () => loadJSON(STARS_KEY, {});
+const loadSnaps = () => loadJSON(SNAP_KEY, {});
+const todayCompanies = {};
+(DATA.companies || []).forEach(c => { todayCompanies[c.symbol] = c; });
+(DATA.newsCompanies || []).forEach(c => { todayCompanies[c.symbol] = c; });
+
+function snapshotStarred() {
+  const stars = loadStars(), snaps = loadSnaps();
+  Object.keys(stars).forEach(sym => {
+    if (todayCompanies[sym]) snaps[sym] = { ...todayCompanies[sym], seenAt: DATA.builtAt };
+  });
+  localStorage.setItem(SNAP_KEY, JSON.stringify(snaps));
+}
+function toggleStar(sym) {
+  const stars = loadStars();
+  if (stars[sym]) delete stars[sym];
+  else stars[sym] = { starredAt: Date.now() };
+  localStorage.setItem(STARS_KEY, JSON.stringify(stars));
+  snapshotStarred();
+  document.querySelectorAll(`.star-btn[data-sym="${sym}"]`)
+    .forEach(b => b.classList.toggle("on", !!stars[sym]));
+  renderDesk();
+}
+
+function makeCoCard(c) {
   const up = c.changePct >= 0;
   const card = document.createElement("button");
-  card.className = "co";
+  card.className = "co" + (c._stale ? " stale" : "");
   card.type = "button";
   card.innerHTML = `
-    <div class="co-top"><span class="tick"></span><span class="badge"></span></div>
+    <div class="co-top"><span class="star-btn" data-sym=""></span><span class="tick"></span><span class="badge"></span></div>
     <div class="co-name"></div>
     <svg class="spark" preserveAspectRatio="none"></svg>
     <div class="co-nums"><span class="price"></span><span class="delta ${up ? "up" : "down"}"></span></div>`;
+  const star = card.querySelector(".star-btn");
+  star.dataset.sym = c.symbol;
+  star.textContent = "★";
+  star.title = "Follow on your desk";
+  star.classList.toggle("on", !!loadStars()[c.symbol]);
+  star.addEventListener("click", e => { e.stopPropagation(); toggleStar(c.symbol); });
   card.querySelector(".tick").textContent = c.symbol;
-  card.querySelector(".badge").textContent = c.badge;
+  card.querySelector(".badge").textContent = c._stale
+    ? "quiet since " + new Date(c.seenAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : c.badge;
   card.querySelector(".co-name").textContent = c.name;
   card.querySelector(".price").textContent = "$" + c.price.toLocaleString("en-US");
   card.querySelector(".delta").textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "%";
   drawSpark(card.querySelector(".spark"), c.spark, c.prevClose, up);
   card.addEventListener("click", () => openCompany(c));
-  coGrid.appendChild(card);
-});
+  return card;
+}
+
+function renderDesk() {
+  const stars = loadStars(), snaps = loadSnaps();
+  const label = document.getElementById("desk-label");
+  const grid = document.getElementById("desk-grid");
+  grid.innerHTML = "";
+  const syms = Object.keys(stars).sort((a, b) => stars[a].starredAt - stars[b].starredAt);
+  label.hidden = syms.length === 0;
+  syms.forEach(sym => {
+    const c = todayCompanies[sym] || (snaps[sym] ? { ...snaps[sym], _stale: true } : null);
+    if (c) grid.appendChild(makeCoCard(c));
+  });
+}
+
+snapshotStarred();
+renderDesk();
+const coGrid = document.getElementById("co-grid");
+(DATA.companies || []).forEach(c => coGrid.appendChild(makeCoCard(c)));
+{
+  const list = DATA.newsCompanies || [];
+  document.getElementById("newsco-label").hidden = list.length === 0;
+  const grid = document.getElementById("newsco-grid");
+  list.forEach(c => grid.appendChild(makeCoCard(c)));
+}
 
 function openCompany(c) {
   const up = c.changePct >= 0;
-  document.getElementById("co-badge").textContent = c.badge;
+  document.getElementById("co-badge").textContent = c._stale
+    ? "no fresh news · data from " + new Date(c.seenAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+    : c.badge;
+  const mLabel = document.getElementById("co-mentions-label");
+  const mList = document.getElementById("co-mentions");
+  mList.innerHTML = "";
+  const mentions = c.mentionedIn || [];
+  mLabel.hidden = mentions.length === 0;
+  mList.hidden = mentions.length === 0;
+  mentions.forEach(m => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = m.link; a.target = "_blank"; a.rel = "noopener";
+    const t = document.createElement("div");
+    t.className = "t"; t.textContent = m.title;
+    a.appendChild(t); li.appendChild(a); mList.appendChild(li);
+  });
   document.getElementById("co-tick").textContent = c.symbol + " · " + c.name;
   document.getElementById("co-about").textContent = c.about || "";
   document.getElementById("co-price").textContent = "$" + c.price.toLocaleString("en-US");
