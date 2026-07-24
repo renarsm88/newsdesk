@@ -1071,7 +1071,11 @@ function drawSpark(svg, series, prevClose, up) {
   line.setAttribute("vector-effect", "non-scaling-stroke");
   line.style.filter = `drop-shadow(0 0 3.5px ${hex}66)`;
   svg.appendChild(line);
-  const L = line.getTotalLength();
+  // manual length: getTotalLength() throws on not-yet-rendered elements
+  let L = 0;
+  for (let i = 1; i < series.length; i++) {
+    L += Math.hypot(x(i) - x(i - 1), y(series[i]) - y(series[i - 1]));
+  }
   line.style.strokeDasharray = L;
   line.style.strokeDashoffset = L;
   line.style.transition = "stroke-dashoffset 1.1s ease 0.2s";
@@ -2113,7 +2117,8 @@ function renderShowSlide(c) {
 
   // slow self-drawing chart
   if (line) {
-    const len = line.getTotalLength();
+    let len = 0;
+    try { len = line.getTotalLength(); } catch { len = 3000; }
     line.style.strokeDasharray = len;
     line.style.strokeDashoffset = len;
     line.style.transition = "stroke-dashoffset 2.6s ease 1.1s";
