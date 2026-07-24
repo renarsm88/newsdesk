@@ -251,6 +251,24 @@ def classify_stories(world, market):
             + [world[i] for i in range(len(world)) if i not in set(featured)])
 
 
+def publish():
+    """Push the fresh build to GitHub Pages. Never fails the build."""
+    if not (HERE / ".git").exists():
+        return
+    try:
+        subprocess.run(["git", "add", "-A"], cwd=HERE, check=True, capture_output=True, timeout=30)
+        committed = subprocess.run(
+            ["git", "commit", "-m", "refresh"], cwd=HERE, capture_output=True, timeout=30)
+        if committed.returncode != 0:
+            print("  site: nothing new to publish")
+            return
+        subprocess.run(["git", "push", "origin", "main"],
+                       cwd=HERE, check=True, capture_output=True, timeout=90)
+        print("  site: published")
+    except Exception as exc:
+        print(f"  (site publish skipped: {exc})")
+
+
 def main():
     articles = fetch_world()
     market_news = fetch_market_news()
@@ -270,6 +288,7 @@ def main():
     (HERE / "index.html").write_text(html_out, encoding="utf-8")
     print(f"Built index.html: {len(articles)} stories, {len(market_news)} market stories, "
           f"{len(indices)} indices, {len(companies)} companies.")
+    publish()
 
 
 if __name__ == "__main__":
