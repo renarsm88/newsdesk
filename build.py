@@ -266,9 +266,17 @@ def publish():
         if committed.returncode != 0:
             print("  site: nothing new to publish")
             return
-        subprocess.run(["git", "push", "origin", "main"],
-                       cwd=HERE, check=True, capture_output=True, timeout=90)
-        print("  site: published")
+        for attempt in (1, 2):
+            push = subprocess.run(["git", "push", "origin", "main"],
+                                  cwd=HERE, capture_output=True, timeout=90)
+            if push.returncode == 0:
+                print("  site: published")
+                return
+            if attempt == 1:
+                print("  (push failed, retrying once...)")
+        print("  (site publish failed: "
+              + push.stderr.decode("utf-8", "replace").strip().splitlines()[-1]
+              + " — will catch up on the next refresh)")
     except Exception as exc:
         print(f"  (site publish skipped: {exc})")
 
