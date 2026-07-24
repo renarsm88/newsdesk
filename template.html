@@ -233,7 +233,6 @@
   }
   .river-track { display: inline-flex; gap: 14px; will-change: transform; animation: drift linear infinite; }
   @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .river:hover .river-track { animation-play-state: paused; }
   @media (prefers-reduced-motion: reduce) { .river-track { animation: none; } }
   .river-item {
     flex: none; width: 230px; background: var(--card); border: 1px solid var(--line);
@@ -2332,7 +2331,48 @@ function peekStory(a) {
   // content twice for a seamless loop
   mixed.forEach(a => track.appendChild(buildItem(a)));
   mixed.forEach(a => track.appendChild(buildItem(a)));
-  track.style.animationDuration = Math.max(40, mixed.length * 6) + "s";
+  const riverDur = Math.max(40, mixed.length * 6);
+  track.style.animationDuration = riverDur + "s";
+
+  // mouse-steered: hover the wire and it glides where you point — no clicks needed
+  const river = document.querySelector(".river");
+  let steering = false, offset = 0, pointerX = 0, steerRaf = null;
+  function steerLoop() {
+    if (!steering) return;
+    const r = river.getBoundingClientRect();
+    const rel = (pointerX - r.left) / r.width - 0.5;      // -0.5 (left edge) … 0.5 (right edge)
+    const speed = Math.abs(rel) < 0.06 ? 0 : rel * 16;    // dead zone in the middle
+    offset -= speed;
+    const half = track.scrollWidth / 2;
+    if (offset <= -half) offset += half;
+    if (offset > 0) offset -= half;
+    track.style.transform = `translateX(${offset}px)`;
+    steerRaf = requestAnimationFrame(steerLoop);
+  }
+  river.addEventListener("pointerenter", e => {
+    if (e.pointerType !== "mouse") return;               // touch keeps the auto-drift
+    const m = new DOMMatrixReadOnly(getComputedStyle(track).transform);
+    offset = m.m41;
+    pointerX = e.clientX;
+    steering = true;
+    track.style.animation = "none";
+    track.style.transform = `translateX(${offset}px)`;
+    steerLoop();
+  });
+  river.addEventListener("pointermove", e => { if (steering) pointerX = e.clientX; });
+  river.addEventListener("pointerleave", () => {
+    if (!steering) return;
+    steering = false;
+    cancelAnimationFrame(steerRaf);
+    // hand back to the CSS drift exactly where we left off
+    const half = track.scrollWidth / 2;
+    let progress = (-offset % half) / half;
+    if (progress < 0) progress += 1;
+    track.style.animation = "";
+    track.style.animationDuration = riverDur + "s";
+    track.style.animationDelay = -(progress * riverDur) + "s";
+    track.style.transform = "";
+  });
 }
 
 // ---------- conviction ledger ----------
