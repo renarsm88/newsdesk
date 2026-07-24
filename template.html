@@ -305,6 +305,44 @@
   }
   .model-box p { font-size: 0.88rem; margin-top: 4px; }
   #model-themes { color: var(--muted); }
+
+  /* ---------- conviction ledger ---------- */
+  .ledger { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; max-width: 660px; }
+  .ledger h3 { font-family: Georgia, serif; font-size: 1.12rem; }
+  .ledger-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 12px 0 4px; }
+  .dir-btn {
+    padding: 9px 18px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--chip); color: inherit; cursor: pointer; font-weight: 700; font-size: 0.95rem;
+  }
+  .dir-btn.sel-up { background: #14652f; border-color: #14652f; color: #fff; }
+  .dir-btn.sel-down { background: #8e1d14; border-color: #8e1d14; color: #fff; }
+  .conf-row { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: var(--muted); flex-wrap: wrap; margin: 8px 0; }
+  .conf-row input { accent-color: var(--accent); width: 170px; }
+  .conf-row b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .ledger-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .ledger-stats .chip { font-size: 0.8rem; padding: 5px 11px; }
+  .ledger-hist { margin-top: 10px; font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+  .ledger-hist .ok { color: var(--up); font-weight: 700; }
+  .ledger-hist .bad { color: var(--down); font-weight: 700; }
+  .graded-banner { border-left: 3px solid var(--accent); padding: 6px 12px; margin-bottom: 12px; font-size: 0.92rem; }
+  .locked { color: var(--muted); font-size: 0.92rem; margin-top: 6px; }
+
+  /* ---------- paper portfolio ---------- */
+  .desk-stats { color: var(--muted); font-size: 0.88rem; margin: -8px 0 14px; display: flex; flex-direction: column; gap: 4px; }
+  .desk-stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .bias { color: #c9a2ff; }
+  .pos-line { font-size: 0.78rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .pos-line .up, .pos-line .down { font-weight: 700; }
+
+  /* ---------- portrait ---------- */
+  .portrait-list details { margin-top: 8px; font-size: 0.88rem; }
+  .portrait-list summary { cursor: pointer; color: #9f86ff; }
+  .portrait-list p { white-space: pre-wrap; margin-top: 6px; }
+  #portrait-input {
+    width: 100%; min-height: 90px; margin-top: 10px; background: var(--chip);
+    color: inherit; border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+    font: inherit; font-size: 0.85rem;
+  }
   .match-note {
     color: #9f86ff; font-size: 0.7rem; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;
@@ -513,7 +551,11 @@
   <div class="river"><div class="river-track" id="river-track"></div></div>
 
   <div class="section-label" id="desk-label" hidden>⭐ Your desk · companies you follow</div>
+  <div id="desk-stats" class="desk-stats" hidden></div>
   <div class="co-grid" id="desk-grid" style="margin-bottom: 34px"></div>
+
+  <div class="section-label">🎯 Conviction ledger · can you actually call the market?</div>
+  <div id="ledger-box" class="ledger" style="margin-bottom: 36px"></div>
 
   <div class="section-label">Biggest worldwide news · BBC
     <button type="button" class="swipe-btn" id="swipe-world">🔥 Swipe mode</button></div>
@@ -626,7 +668,21 @@
       <p id="model-status"></p>
       <p id="model-themes"></p>
     </div>
-    <ul class="saved-list" id="phil-list" style="max-height:40vh"></ul>
+    <ul class="saved-list" id="phil-list" style="max-height:32vh"></ul>
+    <div class="model-box">
+      <span class="kicker" style="color:#9f86ff">The weekly portrait</span>
+      <p style="color:var(--muted)">Once a week: copy the prompt, paste it to Claude, and it writes a portrait
+        of you as an economic creature from everything this page has learned. Paste the result back to archive it.</p>
+      <div class="modal-actions" style="margin-top:10px">
+        <button type="button" class="btn" id="portrait-copy">📜 Copy portrait prompt</button>
+        <button type="button" class="btn ghost" id="portrait-toggle">Archive a portrait</button>
+      </div>
+      <textarea id="portrait-input" hidden placeholder="Paste Claude's portrait here…"></textarea>
+      <div class="modal-actions" id="portrait-save-row" hidden style="margin-top:8px">
+        <button type="button" class="btn" id="portrait-save">Save portrait</button>
+      </div>
+      <div class="portrait-list" id="portrait-list"></div>
+    </div>
     <div class="modal-actions" style="margin-top:16px">
       <button type="button" class="btn ghost" id="phil-clear">Forget it all</button>
     </div>
@@ -968,15 +1024,96 @@ function snapshotStarred() {
   });
   localStorage.setItem(SNAP_KEY, JSON.stringify(snaps));
 }
+// ---------- paper ghost portfolio ----------
+const PORT_KEY = "newsdesk-portfolio";
+function loadPort() {
+  return loadJSON(PORT_KEY, { cash: 10000, positions: {}, realized: [], opens: {} });
+}
+const savePort = p => localStorage.setItem(PORT_KEY, JSON.stringify(p));
+function currentPrice(sym) {
+  if (todayCompanies[sym]) return todayCompanies[sym].price;
+  const s = loadSnaps()[sym];
+  return s ? s.price : null;
+}
+function paperBuy(sym) {
+  const port = loadPort();
+  const price = currentPrice(sym);
+  if (!price || port.positions[sym]) return;
+  const amount = Math.min(1000, port.cash);
+  if (amount < 50) return;
+  port.cash -= amount;
+  port.positions[sym] = { shares: amount / price, cost: amount, boughtAt: Date.now(), buyPrice: price };
+  savePort(port);
+}
+function paperSell(sym) {
+  const port = loadPort();
+  const pos = port.positions[sym];
+  if (!pos) return;
+  const price = currentPrice(sym) || pos.buyPrice;
+  const value = pos.shares * price;
+  port.realized.unshift({ sym, pnl: value - pos.cost, wasWin: value >= pos.cost, at: Date.now() });
+  port.cash += value;
+  delete port.positions[sym];
+  savePort(port);
+}
+function positionFor(sym) { return loadPort().positions[sym] || null; }
+
+function renderDeskStats() {
+  const port = loadPort();
+  const box = document.getElementById("desk-stats");
+  const syms = Object.keys(port.positions);
+  if (!syms.length && !port.realized.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.innerHTML = "";
+  let value = port.cash;
+  syms.forEach(s => { value += port.positions[s].shares * (currentPrice(s) || port.positions[s].buyPrice); });
+  const pnl = value - 10000;
+  const total = document.createElement("div");
+  total.innerHTML = `Paper book: €10,000 → <b>€${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}</b> `
+    + `<span class="${pnl >= 0 ? "up" : "down"}">${pnl >= 0 ? "+" : ""}${pnl.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>`
+    + ` · every ★ invests €1,000 of pretend money`;
+  box.appendChild(total);
+
+  // bias callouts: how you *behave*, not what you say
+  const winners = syms.filter(s => (currentPrice(s) || 0) >= port.positions[s].buyPrice);
+  const losers = syms.filter(s => (currentPrice(s) || Infinity) < port.positions[s].buyPrice);
+  const opensOf = list => list.reduce((n, s) => n + (port.opens[s] || 0), 0);
+  const wOpens = opensOf(winners), lOpens = opensOf(losers);
+  if (winners.length && losers.length && wOpens + lOpens >= 6) {
+    const line = document.createElement("div");
+    line.className = "bias";
+    if (wOpens > lOpens * 2) line.textContent =
+      `👁 Ostrich effect: you've opened your winners ${wOpens}× and your losers only ${lOpens}×. The red ones don't disappear unwatched.`;
+    else if (lOpens > wOpens * 2) line.textContent =
+      `👁 You stare at your losses (${lOpens}× vs ${wOpens}×). Loss aversion has your attention.`;
+    if (line.textContent) box.appendChild(line);
+  }
+  const sold = port.realized.slice(0, 10);
+  const winsSold = sold.filter(r => r.wasWin).length, lossSold = sold.length - winsSold;
+  if (sold.length >= 3 && winsSold > lossSold * 2 && losers.length) {
+    const line = document.createElement("div");
+    line.className = "bias";
+    line.textContent = `👁 Disposition effect: you sell winners (${winsSold}) and keep losers (${losers.length} still on the desk).`;
+    box.appendChild(line);
+  }
+}
+
 function toggleStar(sym) {
   const stars = loadStars();
-  if (stars[sym]) delete stars[sym];
-  else stars[sym] = { starredAt: Date.now() };
+  if (stars[sym]) {
+    delete stars[sym];
+    paperSell(sym);
+  } else {
+    stars[sym] = { starredAt: Date.now() };
+    localStorage.setItem(STARS_KEY, JSON.stringify(stars));
+    snapshotStarred();
+    paperBuy(sym);
+  }
   localStorage.setItem(STARS_KEY, JSON.stringify(stars));
-  snapshotStarred();
   document.querySelectorAll(`.star-btn[data-sym="${sym}"]`)
     .forEach(b => b.classList.toggle("on", !!stars[sym]));
   renderDesk();
+  renderDeskStats();
 }
 
 function makeCoCard(c) {
@@ -1003,6 +1140,16 @@ function makeCoCard(c) {
   card.querySelector(".price").textContent = "$" + c.price.toLocaleString("en-US");
   card.querySelector(".delta").textContent = (up ? "▲ +" : "▼ ") + c.changePct.toFixed(2) + "%";
   drawSpark(card.querySelector(".spark"), c.spark, c.prevClose, up);
+  const pos = positionFor(c.symbol);
+  if (pos) {
+    const value = pos.shares * (currentPrice(c.symbol) || pos.buyPrice);
+    const pnl = value - pos.cost;
+    const line = document.createElement("div");
+    line.className = "pos-line";
+    line.innerHTML = `€${pos.cost.toLocaleString()} → €${value.toLocaleString("en-US", { maximumFractionDigits: 0 })} `
+      + `<span class="${pnl >= 0 ? "up" : "down"}">${pnl >= 0 ? "+" : ""}${pnl.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>`;
+    card.appendChild(line);
+  }
   card.addEventListener("click", () => openCompany(c));
   return card;
 }
@@ -1022,6 +1169,7 @@ function renderDesk() {
 
 snapshotStarred();
 renderDesk();
+renderDeskStats();
 const coGrid = document.getElementById("co-grid");
 (DATA.companies || []).forEach(c => coGrid.appendChild(makeCoCard(c)));
 {
@@ -1032,6 +1180,11 @@ const coGrid = document.getElementById("co-grid");
 }
 
 function openCompany(c) {
+  {
+    const port = loadPort();
+    port.opens[c.symbol] = (port.opens[c.symbol] || 0) + 1;
+    savePort(port);
+  }
   const up = c.changePct >= 0;
   document.getElementById("co-badge").textContent = c._stale
     ? "no fresh news · data from " + new Date(c.seenAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
@@ -1772,6 +1925,199 @@ function peekStory(a) {
   mixed.forEach(a => track.appendChild(buildItem(a)));
   track.style.animationDuration = Math.max(40, mixed.length * 6) + "s";
 }
+
+// ---------- conviction ledger ----------
+const LEDGER_KEY = "newsdesk-ledger";
+const loadLedger = () => loadJSON(LEDGER_KEY, { pending: [], history: [] });
+const saveLedger = l => localStorage.setItem(LEDGER_KEY, JSON.stringify(l));
+const spxNow = () => ((DATA.market && DATA.market.indices) || []).find(i => i.name === "S&P 500");
+
+function gradePredictions() {
+  const led = loadLedger();
+  const idx = spxNow();
+  if (!idx) return [];
+  const buildTime = new Date(DATA.builtAt).getTime();
+  const graded = [];
+  led.pending = led.pending.filter(p => {
+    if (buildTime < p.madeAt + 18 * 3600e3) return true;
+    const correct = (p.dir === "up") === (idx.price > p.priceAt);
+    const rec = { ...p, priceNow: idx.price, correct, gradedAt: buildTime };
+    led.history.unshift(rec);
+    graded.push(rec);
+    return false;
+  });
+  saveLedger(led);
+  return graded;
+}
+
+function ledgerStats(hist) {
+  const n = hist.length;
+  const right = hist.filter(h => h.correct).length;
+  let streak = 0;
+  for (const h of hist) { if (h.correct) streak++; else break; }
+  const avgConf = n ? hist.reduce((s, h) => s + h.conf, 0) / n : 0;
+  return { n, right, acc: n ? right / n : 0, streak, avgConf };
+}
+
+function renderLedger(justGraded) {
+  const box = document.getElementById("ledger-box");
+  box.innerHTML = "";
+  const led = loadLedger();
+  const idx = spxNow();
+
+  (justGraded || []).forEach(g => {
+    const b = document.createElement("div");
+    b.className = "graded-banner";
+    const move = ((g.priceNow - g.priceAt) / g.priceAt * 100).toFixed(2);
+    b.innerHTML = `You called <b>${g.dir.toUpperCase()}</b> at <b>${g.conf}%</b> sure — the S&P went `
+      + `<b>${move >= 0 ? "+" : ""}${move}%</b>. `
+      + (g.correct ? '<span class="ok">Right.</span>' : '<span class="bad">Wrong.</span>');
+    box.appendChild(b);
+  });
+
+  const h3 = document.createElement("h3");
+  h3.textContent = "Will the S&P 500 be higher this time tomorrow?";
+  box.appendChild(h3);
+
+  const open = led.pending.find(p => p.market === "spx");
+  if (open) {
+    const l = document.createElement("div");
+    l.className = "locked";
+    l.textContent = `Locked in: ${open.dir.toUpperCase()} at ${open.conf}% sure (from $`
+      + open.priceAt.toLocaleString("en-US") + `). Reality grades you on the next refresh after ~18h.`;
+    box.appendChild(l);
+  } else if (!idx) {
+    const l = document.createElement("div");
+    l.className = "locked";
+    l.textContent = "No index data this refresh — try later.";
+    box.appendChild(l);
+  } else {
+    let dir = null, conf = 70;
+    const row = document.createElement("div");
+    row.className = "ledger-row";
+    const upBtn = document.createElement("button");
+    upBtn.className = "dir-btn"; upBtn.type = "button"; upBtn.textContent = "▲ Higher";
+    const dnBtn = document.createElement("button");
+    dnBtn.className = "dir-btn"; dnBtn.type = "button"; dnBtn.textContent = "▼ Lower";
+    const lock = document.createElement("button");
+    lock.className = "btn"; lock.type = "button"; lock.textContent = "Lock it in";
+    lock.style.opacity = "0.4";
+    upBtn.addEventListener("click", () => { dir = "up"; upBtn.classList.add("sel-up"); dnBtn.classList.remove("sel-down"); lock.style.opacity = "1"; });
+    dnBtn.addEventListener("click", () => { dir = "down"; dnBtn.classList.add("sel-down"); upBtn.classList.remove("sel-up"); lock.style.opacity = "1"; });
+    row.appendChild(upBtn); row.appendChild(dnBtn); row.appendChild(lock);
+    box.appendChild(row);
+
+    const confRow = document.createElement("div");
+    confRow.className = "conf-row";
+    confRow.innerHTML = `how sure are you? <input type="range" min="55" max="95" step="5" value="70"> <b>70%</b>`;
+    const slider = confRow.querySelector("input");
+    const confLabel = confRow.querySelector("b");
+    slider.addEventListener("input", () => { conf = +slider.value; confLabel.textContent = conf + "%"; });
+    box.appendChild(confRow);
+
+    lock.addEventListener("click", () => {
+      if (!dir) return;
+      const l = loadLedger();
+      l.pending.push({ market: "spx", dir, conf, priceAt: idx.price, madeAt: Date.now() });
+      saveLedger(l);
+      renderLedger();
+    });
+  }
+
+  const s = ledgerStats(led.history);
+  if (s.n) {
+    const stats = document.createElement("div");
+    stats.className = "ledger-stats";
+    const chip = txt => { const c = document.createElement("span"); c.className = "chip"; c.innerHTML = txt; return c; };
+    stats.appendChild(chip(`record <b>${s.right}/${s.n}</b> (${Math.round(s.acc * 100)}%)`));
+    if (s.streak >= 2) stats.appendChild(chip(`🔥 streak <b>${s.streak}</b>`));
+    const tax = Math.round(s.avgConf - s.acc * 100);
+    if (s.n >= 3) stats.appendChild(chip(tax > 5
+      ? `overconfidence tax <b class="down">+${tax}pts</b> (you feel ${Math.round(s.avgConf)}%, you deliver ${Math.round(s.acc * 100)}%)`
+      : `calibration <b class="up">honest</b> — you deliver what you claim`));
+    box.appendChild(stats);
+
+    const hist = document.createElement("div");
+    hist.className = "ledger-hist";
+    led.history.slice(0, 3).forEach(h => {
+      const move = ((h.priceNow - h.priceAt) / h.priceAt * 100).toFixed(2);
+      const d = document.createElement("div");
+      d.innerHTML = `${new Date(h.madeAt).toLocaleDateString("en-GB", { weekday: "short" })}: `
+        + `${h.dir.toUpperCase()} ${h.conf}% → market ${move >= 0 ? "+" : ""}${move}% `
+        + (h.correct ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>');
+      hist.appendChild(d);
+    });
+    box.appendChild(hist);
+  } else if (!open) {
+    const p = document.createElement("div");
+    p.className = "ledger-hist";
+    p.textContent = "No calls yet. Most people think they can do this. The ledger remembers.";
+    box.appendChild(p);
+  }
+}
+renderLedger(gradePredictions());
+
+// ---------- weekly portrait ----------
+const PORTRAITS_KEY = "newsdesk-portraits";
+function portraitPrompt() {
+  const led = loadLedger();
+  const port = loadPort();
+  const s = ledgerStats(led.history);
+  const data = {
+    philosophicalAnswers: loadAnswers(),
+    tasteModel: loadProfile(),
+    marketPredictions: { record: `${s.right}/${s.n}`, avgConfidence: Math.round(s.avgConf), streak: s.streak },
+    paperPortfolio: {
+      positions: Object.keys(port.positions),
+      realizedTrades: port.realized.slice(0, 10),
+      cardOpensPerCompany: port.opens,
+    },
+    savedStories: loadSaved().map(x => x.title).slice(0, 15),
+  };
+  return "Below is behavioral data a news page collected about me: philosophical answers I chose, "
+    + "news themes I swipe toward and away from, market predictions with my confidence levels, "
+    + "a paper portfolio and which holdings I check, and headlines I saved. "
+    + "Write a ~200-word psychological portrait of me as an economic creature — second person, honest, "
+    + "specific to the data, no flattery, no disclaimers. Name my likely biases and one blind spot.\n\n"
+    + JSON.stringify(data, null, 1);
+}
+document.getElementById("portrait-copy").addEventListener("click", async e => {
+  try {
+    await navigator.clipboard.writeText(portraitPrompt());
+    e.target.textContent = "✓ Copied — now paste it to Claude";
+    setTimeout(() => { e.target.textContent = "📜 Copy portrait prompt"; }, 3500);
+  } catch { alert("Couldn't reach the clipboard — click the page once and try again."); }
+});
+const portraitInput = document.getElementById("portrait-input");
+const portraitSaveRow = document.getElementById("portrait-save-row");
+document.getElementById("portrait-toggle").addEventListener("click", () => {
+  portraitInput.hidden = !portraitInput.hidden;
+  portraitSaveRow.hidden = portraitInput.hidden;
+});
+document.getElementById("portrait-save").addEventListener("click", () => {
+  const text = portraitInput.value.trim();
+  if (!text) return;
+  const list = loadJSON(PORTRAITS_KEY, []);
+  list.unshift({ date: new Date().toISOString(), text });
+  localStorage.setItem(PORTRAITS_KEY, JSON.stringify(list.slice(0, 30)));
+  portraitInput.value = "";
+  portraitInput.hidden = true; portraitSaveRow.hidden = true;
+  renderPortraits();
+});
+function renderPortraits() {
+  const box = document.getElementById("portrait-list");
+  box.innerHTML = "";
+  loadJSON(PORTRAITS_KEY, []).forEach(p => {
+    const d = document.createElement("details");
+    const sum = document.createElement("summary");
+    sum.textContent = "Portrait · " + new Date(p.date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+    const body = document.createElement("p");
+    body.textContent = p.text;
+    d.appendChild(sum); d.appendChild(body);
+    box.appendChild(d);
+  });
+}
+renderPortraits();
 
 // ---------- entrance stagger ----------
 document.querySelectorAll(".fc, .co").forEach((c, i) => {
